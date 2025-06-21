@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LogAI Log Analyzer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f2f4f8;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            color: #222;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background-color: #fff;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 0 12px rgba(0,0,0,0.1);
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: 600;
+        }
+
+        select, input[type="file"], input[type="text"], button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            margin-bottom: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .warning {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .footer-link {
+            text-align: right;
+            margin-top: 20px;
+        }
+
+        .footer-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .footer-link a:hover {
+            text-decoration: underline;
+        }
+
+        .note {
+            font-size: 0.9em;
+            color: #777;
+            margin-top: -10px;
+            margin-bottom: 16px;
+        }
+
+        .actions {
+            margin-top: 20px;
+        }
+
+        .actions a {
+            display: inline-block;
+            margin-right: 15px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .actions a:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔍 LogAI - Log Anomaly Detection</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+        <label for="parser">Choose Log Parser</label>
+        <select name="parser" id="parser">
+            <option value="drain">Drain</option>
+            <option value="lenma">Lenma</option>
+        </select>
+
+        <label for="model">Choose Anomaly Detection Model</label>
+        <select name="model" id="model">
+            <option value="isolation_forest">Isolation Forest</option>
+            <option value="autoencoder">Autoencoder</option>
+        </select>
+
+        <label for="index_name">Elasticsearch Index Name</label>
+        <input type="text" name="index_name" id="index_name" placeholder="e.g., firewall-logs">
+        <div class="note">Leave blank to auto-create index like <code>logai-YYYY-MM-DD</code></div>
+
+        <label for="logfile">Select Log File</label>
+        <input type="file" name="logfile" id="logfile" accept=".csv,.txt" required>
+
+        <button type="submit">🚀 Upload & Analyze</button>
+    </form>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for msg in messages %}
+          {% if "⚠️" in msg or "❌" in msg %}
+            <div class="warning">{{ msg }}</div>
+          {% else %}
+            <div class="message">{{ msg }}</div>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% if results %}
+        <div class="actions">
+            {% if csv_path %}
+              <a href="{{ url_for('static', filename=csv_path.replace('uploads/', '')) }}" download>⬇️ Download Results CSV</a>
+            {% endif %}
+            {% if kibana_url %}
+              <a href="{{ kibana_url }}" target="_blank">📊 View in Kibana</a>
+            {% endif %}
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Log Line</th>
+                    <th>Anomaly</th>
+                    <th>Score</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in results %}
+                <tr>
+                    <td>{{ row.logline }}</td>
+                    <td>{{ row.is_anomaly }}</td>
+                    <td>{{ '1.0' if row.is_anomaly else '0.0' }}</td>
+                    <td>{{ row.timestamp }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+</body>
+</html>

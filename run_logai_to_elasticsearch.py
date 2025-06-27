@@ -65,4 +65,4 @@ results = anomaly_detector.results
 # Send to Elasticsearch
 send_to_elasticsearch("logai-results", results)
 
-print(f"✅ Sent {len(results)} log entries to Elasticsearch.")
+print(f"✅ Sent {len(results)} log entries to Elasticsearch.") 

@@ -1,5 +1,6 @@
 import pandas as pd
 from datetime import datetime
+import time
 from logai.applications.log_anomaly_detection import LogAnomalyDetection
 from logai.applications.application_interfaces import WorkFlowConfig
 from elasticsearch import Elasticsearch
@@ -63,6 +64,8 @@ def preprocess_log(filepath):
     return cleaned_path, "timestamp" in df.columns
 
 def process_log_file(filepath, parser_algo, model_type, index_name):
+    start_time = time.time()
+    
     cleaned_path, has_timestamp = preprocess_log(filepath)
 
     dimensions = {
@@ -101,6 +104,12 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
     detector = LogAnomalyDetection(config)
     detector.execute()
     results = detector.results
+    
+    # Add processing time metadata
+    processing_time = time.time() - start_time
+    results['processing_time_seconds'] = processing_time
+    results['analysis_date'] = datetime.utcnow().isoformat()
+    results['file_processed'] = os.path.basename(filepath)
 
     # Save results as CSV
     result_filename = f"anomaly_results_{uuid.uuid4().hex[:8]}.csv"

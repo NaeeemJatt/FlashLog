@@ -2,213 +2,229 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>LogAI Log Analyzer</title>
+    <title>FlashLog - Log Anomaly Detection</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #f2f4f8;
-            margin: 0;
-            padding: 30px;
-            color: #333;
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
-
-        h1 {
-            text-align: center;
-            color: #222;
+        .zoom-in {
+            animation: zoomIn 0.6s ease-out forwards;
         }
-
-        .container {
-            max-width: 900px;
-            margin: auto;
-            background-color: #fff;
-            padding: 25px 40px;
-            border-radius: 12px;
-            box-shadow: 0 0 12px rgba(0,0,0,0.1);
+        .zoom-in-delay-1 {
+            animation: zoomIn 0.6s ease-out 0.1s forwards;
+            opacity: 0;
         }
-
-        form {
-            margin-bottom: 20px;
+        .zoom-in-delay-2 {
+            animation: zoomIn 0.6s ease-out 0.2s forwards;
+            opacity: 0;
         }
-
-        label {
-            font-weight: 600;
+        .zoom-in-delay-3 {
+            animation: zoomIn 0.6s ease-out 0.3s forwards;
+            opacity: 0;
         }
-
-        select, input[type="file"], input[type="text"], button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 6px;
-            margin-bottom: 16px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-        }
-
-        button {
-            background-color: #007bff;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            transition: background 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        .message {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .warning {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            background-color: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 25px;
-        }
-
-        th, td {
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-
-        th {
-            background-color: #007bff;
-            color: white;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        .footer-link {
-            text-align: right;
-            margin-top: 20px;
-        }
-
-        .footer-link a {
-            color: #007bff;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .footer-link a:hover {
-            text-decoration: underline;
-        }
-
-        .note {
-            font-size: 0.9em;
-            color: #777;
-            margin-top: -10px;
-            margin-bottom: 16px;
-        }
-
-        .actions {
-            margin-top: 20px;
-        }
-
-        .actions a {
-            display: inline-block;
-            margin-right: 15px;
-            padding: 10px 15px;
-            border-radius: 6px;
-            background: #007bff;
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .actions a:hover {
-            background: #0056b3;
+        .zoom-in-delay-4 {
+            animation: zoomIn 0.6s ease-out 0.4s forwards;
+            opacity: 0;
         }
     </style>
 </head>
-<body>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 w-full bg-white dark:bg-gray-900 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto flex items-center h-16 px-6">
+            <div class="flex items-center gap-3">
+                <div>
+                    <div class="font-bold text-lg text-gray-900 dark:text-white">FlashLog</div>
+                </div>
+            </div>
+        </div>
+    </nav>
 
-<div class="container">
-    <h1>🔍 LogAI - Log Anomaly Detection</h1>
-
+    <main class="pt-20 pb-6 px-[50px]">
+        <!-- Log Analysis Configuration -->
+        <section class="zoom-in">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1 pl-1 zoom-in-delay-1">Log Analysis Configuration</h2>
+            <p class="text-gray-500 dark:text-gray-400 mb-6 pl-1 zoom-in-delay-1">Configure your log analysis parameters and upload files for anomaly detection.</p>
     <form method="POST" enctype="multipart/form-data">
-        <label for="parser">Choose Log Parser</label>
-        <select name="parser" id="parser">
-            <option value="drain">Drain</option>
-            <option value="lenma">Lenma</option>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- Parser Configuration -->
+                    <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-2">
+                        <div class="font-semibold text-gray-900 dark:text-white">Parser Configuration</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Configure how your log files will be parsed.</div>
+                        <select name="parser" id="parser" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                            <option value="drain">Drain Parser</option>
+                            <option value="lenma">Lenma Parser</option>
         </select>
-
-        <label for="model">Choose Anomaly Detection Model</label>
-        <select name="model" id="model">
+                        <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200">
+                            <span>✅</span>
+                            <span>Recommended: Drain parser works best for structured log formats and provides optimal performance.</span>
+                        </div>
+                    </div>
+                    <!-- Detection Model -->
+                    <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-2">
+                        <div class="flex items-center justify-between">
+                            <div class="font-semibold text-gray-900 dark:text-white">Detection Model</div>
+                            <span class="ml-2 px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200">High Accuracy</span>
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Choose the anomaly detection algorithm.</div>
+                        <select name="model" id="model" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
             <option value="isolation_forest">Isolation Forest</option>
-            <option value="autoencoder">Autoencoder</option>
+                            <option value="one_class_svm">One Class SVM</option>
+                            <option value="local_outlier_factor">Local Outlier Factor (LOF)</option>
+                            <option value="distribution_divergence">Distribution Divergence</option>
+                            <option value="ets">ETS Detector</option>
+                            <option value="dbl">DBL Detector</option>
+                            <option value="forecast_nn">Forecast Neural Network</option>
+                            <option value="logbert">LogBERT</option>
         </select>
-
-        <label for="index_name">Elasticsearch Index Name</label>
-        <input type="text" name="index_name" id="index_name" placeholder="e.g., firewall-logs">
-        <div class="note">Leave blank to auto-create index like <code>logai-YYYY-MM-DD</code></div>
-
-        <label for="logfile">Select Log File</label>
-        <input type="file" name="logfile" id="logfile" accept=".csv,.txt" required>
-
-        <button type="submit">🚀 Upload & Analyze</button>
+                    </div>
+                    <!-- Elasticsearch Integration -->
+                    <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-3">
+                        <div class="font-semibold text-gray-900 dark:text-white">Elasticsearch Integration</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Configure your Elasticsearch index for log storage and retrieval.</div>
+                        <input type="text" name="index_name" id="index_name" placeholder="e.g., firewall-logs, application-logs" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white mb-2" />
+                        <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                            <span>Auto-indexing:</span>
+                            <span>Leave blank to automatically create an index with format <code>flashlog-YYYY-MM-DD</code>.</span>
+                        </div>
+                    </div>
+                    <!-- Log File Upload -->
+                    <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-3">
+                        <div class="font-semibold text-gray-900 dark:text-white">Log File Upload</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Upload your log files for comprehensive anomaly detection analysis.</div>
+                        <input type="file" name="logfile" id="logfile" accept=".csv,.txt" required class="block w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" />
+                    </div>
+                </div>
+                <div class="flex justify-end mt-8 zoom-in-delay-4">
+                    <button type="submit" class="px-8 py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold text-lg shadow-sm">
+                        🚀 Upload & Analyze Logs
+                    </button>
+                </div>
     </form>
+        </section>
 
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        {% for msg in messages %}
-          {% if "⚠️" in msg or "❌" in msg %}
-            <div class="warning">{{ msg }}</div>
-          {% else %}
-            <div class="message">{{ msg }}</div>
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    {% if results %}
-        <div class="actions">
-            {% if csv_path %}
-              <a href="{{ url_for('static', filename=csv_path.replace('uploads/', '')) }}" download>⬇️ Download Results CSV</a>
-            {% endif %}
-            {% if kibana_url %}
-              <a href="{{ kibana_url }}" target="_blank">📊 View in Kibana</a>
-            {% endif %}
+        <!-- Analysis Results -->
+        {% if results %}
+        <section class="mt-10 zoom-in">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1 pl-1 zoom-in-delay-1">Analysis Results</h2>
+            <p class="text-gray-500 dark:text-gray-400 mb-6 pl-1 zoom-in-delay-1">Results from your latest log analysis.</p>
+            
+            <!-- Results Summary -->
+            <div class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6 zoom-in-delay-2">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ results|length }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Total Log Entries</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-red-500">{{ results|selectattr('is_anomaly', 'equalto', True)|list|length }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Anomalies Detected</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-500">{{ "%.1f"|format(((results|length - (results|selectattr('is_anomaly', 'equalto', True)|list|length)) / results|length * 100)) }}%</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Success Rate</div>
+                    </div>
+                </div>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Log Line</th>
-                    <th>Anomaly</th>
-                    <th>Score</th>
-                    <th>Timestamp</th>
+            <!-- Results Table -->
+            <div class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden zoom-in-delay-3">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Log Entry</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Anomaly</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
                 </tr>
             </thead>
-            <tbody>
-            {% for row in results %}
-                <tr>
-                    <td>{{ row.logline }}</td>
-                    <td>{{ row.is_anomaly }}</td>
-                    <td>{{ '1.0' if row.is_anomaly else '0.0' }}</td>
-                    <td>{{ row.timestamp }}</td>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for result in results[:10] %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                    <div class="max-w-xs truncate">{{ result.logline }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if result.is_anomaly %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                        Anomaly
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                        Normal
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {{ result.timestamp[:19] if result.timestamp else 'N/A' }}
+                                </td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
+                </div>
+                {% if results|length > 10 %}
+                <div class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-sm text-gray-500 dark:text-gray-400">
+                    Showing first 10 results of {{ results|length }} total entries
+                </div>
     {% endif %}
 </div>
 
+            <!-- Download and Kibana Links -->
+            {% if csv_path %}
+            <div class="mt-6 flex gap-4 zoom-in-delay-4">
+                <a href="{{ url_for('main.download_csv', filename=csv_path.split('/')[-1]) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    📥 Download Results CSV
+                </a>
+                {% if kibana_url %}
+                <a href="{{ kibana_url }}" target="_blank" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    🔍 View in Kibana
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-gray-900 mt-0">
+        <div class="max-w-7xl mx-auto px-6 py-6">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                    Created by <span class="font-semibold text-gray-900 dark:text-white">Naeem Jatt</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <a href="https://github.com/NaeeemJatt" target="_blank" 
+                       class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        GitHub
+                    </a>
+                    <a href="https://naeemashiq.com/" target="_blank" 
+                       class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9m0-9c-5 0-9 4-9 9s4 9 9 9"/>
+                        </svg>
+                        Portfolio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>

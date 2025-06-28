@@ -5,6 +5,11 @@
     <title>FlashLog - Log Anomaly Detection</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
+    <!-- Cache control meta tags to prevent refresh issues -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -56,7 +61,7 @@
         <section class="zoom-in">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1 pl-1 zoom-in-delay-1">Log Analysis Configuration</h2>
             <p class="text-gray-500 dark:text-gray-400 mb-6 pl-1 zoom-in-delay-1">Configure your log analysis parameters and upload files for anomaly detection.</p>
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" id="analyze-form">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <!-- Parser Configuration -->
                     <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-2">
@@ -64,11 +69,17 @@
                         <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Configure how your log files will be parsed.</div>
                         <select name="parser" id="parser" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
                             <option value="drain">Drain Parser</option>
-                            <option value="lenma">Lenma Parser</option>
-        </select>
+                            <option value="ael">AEL Parser</option>
+                            <option value="iplom">IPLoM Parser</option>
+                        </select>
                         <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200">
                             <span>✅</span>
-                            <span>Recommended: Drain parser works best for structured log formats and provides optimal performance.</span>
+                            <span>Recommended: Drain parser works best for unstructured logs and provides optimal performance.</span>
+                        </div>
+                        <div class="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                            <div><strong>Drain:</strong> Tree-based algorithm, fast and robust for most log types</div>
+                            <div><strong>AEL:</strong> Automated Event Labeling, good for event-based logs</div>
+                            <div><strong>IPLoM:</strong> Iterative Partitioning, effective for complex log structures</div>
                         </div>
                     </div>
                     <!-- Detection Model -->
@@ -79,7 +90,7 @@
                         </div>
                         <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Choose the anomaly detection algorithm.</div>
                         <select name="model" id="model" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-            <option value="isolation_forest">Isolation Forest</option>
+                            <option value="isolation_forest">Isolation Forest</option>
                             <option value="one_class_svm">One Class SVM</option>
                             <option value="local_outlier_factor">Local Outlier Factor (LOF)</option>
                             <option value="distribution_divergence">Distribution Divergence</option>
@@ -87,7 +98,21 @@
                             <option value="dbl">DBL Detector</option>
                             <option value="forecast_nn">Forecast Neural Network</option>
                             <option value="logbert">LogBERT</option>
-        </select>
+                        </select>
+                        <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+                            <span>✅</span>
+                            <span>Recommended: Isolation Forest provides excellent performance for log anomaly detection.</span>
+                        </div>
+                        <div class="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                            <div><strong>Isolation Forest:</strong> Fast, efficient for high-dimensional data</div>
+                            <div><strong>One Class SVM:</strong> Good for detecting outliers in normal data</div>
+                            <div><strong>Local Outlier Factor:</strong> Density-based, identifies local anomalies</div>
+                            <div><strong>Distribution Divergence:</strong> Statistical approach for pattern changes</div>
+                            <div><strong>ETS Detector:</strong> Time-series based anomaly detection</div>
+                            <div><strong>DBL Detector:</strong> Deep learning approach for complex patterns</div>
+                            <div><strong>Forecast NN:</strong> Neural network for sequence prediction</div>
+                            <div><strong>LogBERT:</strong> Transformer-based, state-of-the-art for log analysis</div>
+                        </div>
                     </div>
                     <!-- Elasticsearch Integration -->
                     <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-3">
@@ -103,101 +128,27 @@
                     <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-3">
                         <div class="font-semibold text-gray-900 dark:text-white">Log File Upload</div>
                         <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Upload your log files for comprehensive anomaly detection analysis.</div>
-                        <input type="file" name="logfile" id="logfile" accept=".csv,.txt" required class="block w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" />
+                        <input type="file" name="logfile" id="logfile" accept=".csv,.txt,.log" required class="block w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" />
+                        <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+                            <span>📝</span>
+                            <span>Supports: Raw log files (.txt, .log), CSV files, and unstructured log data</span>
+                        </div>
                     </div>
                 </div>
                 <div class="flex justify-end mt-8 zoom-in-delay-4">
-                    <button type="submit" class="px-8 py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold text-lg shadow-sm">
-                        🚀 Upload & Analyze Logs
+                    <button type="submit" id="analyze-btn" class="px-8 py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold text-lg shadow-sm flex items-center gap-2">
+                        <span id="analyze-btn-text">🚀 Upload & Analyze Logs</span>
+                        <span id="analyze-btn-spinner" class="hidden animate-spin"><svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg></span>
                     </button>
+                </div>
+                <div id="progress-bar-container" class="w-full mt-4 hidden">
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div id="progress-bar" class="bg-green-500 h-2.5 rounded-full progress-animate" style="width: 0%"></div>
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mt-1 text-right" id="progress-percent">0%</div>
                 </div>
     </form>
         </section>
-
-        <!-- Analysis Results -->
-        {% if results %}
-        <section class="mt-10 zoom-in">
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1 pl-1 zoom-in-delay-1">Analysis Results</h2>
-            <p class="text-gray-500 dark:text-gray-400 mb-6 pl-1 zoom-in-delay-1">Results from your latest log analysis.</p>
-            
-            <!-- Results Summary -->
-            <div class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6 zoom-in-delay-2">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ results|length }}</div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Total Log Entries</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-red-500">{{ results|selectattr('is_anomaly', 'equalto', True)|list|length }}</div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Anomalies Detected</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-2xl font-bold text-green-500">{{ "%.1f"|format(((results|length - (results|selectattr('is_anomaly', 'equalto', True)|list|length)) / results|length * 100)) }}%</div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Success Rate</div>
-                    </div>
-                </div>
-        </div>
-
-            <!-- Results Table -->
-            <div class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden zoom-in-delay-3">
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-100 dark:bg-gray-700">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Log Entry</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Anomaly</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
-                </tr>
-            </thead>
-                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {% for result in results[:10] %}
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                    <div class="max-w-xs truncate">{{ result.logline }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    {% if result.is_anomaly %}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                        Anomaly
-                                    </span>
-                                    {% else %}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                        Normal
-                                    </span>
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {{ result.timestamp[:19] if result.timestamp else 'N/A' }}
-                                </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-                </div>
-                {% if results|length > 10 %}
-                <div class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-sm text-gray-500 dark:text-gray-400">
-                    Showing first 10 results of {{ results|length }} total entries
-                </div>
-    {% endif %}
-</div>
-
-            <!-- Download and Kibana Links -->
-            {% if csv_path %}
-            <div class="mt-6 flex gap-4 zoom-in-delay-4">
-                <a href="{{ url_for('main.download_csv', filename=csv_path.split('/')[-1]) }}" 
-                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                    📥 Download Results CSV
-                </a>
-                {% if kibana_url %}
-                <a href="{{ kibana_url }}" target="_blank" 
-                   class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                    🔍 View in Kibana
-                </a>
-                {% endif %}
-            </div>
-            {% endif %}
-        </section>
-        {% endif %}
     </main>
 
     <!-- Footer -->
@@ -226,5 +177,63 @@
             </div>
         </div>
     </footer>
+
+    <script>
+    // Loading spinner and progress bar logic
+    const form = document.getElementById('analyze-form');
+    const btn = document.getElementById('analyze-btn');
+    const btnText = document.getElementById('analyze-btn-text');
+    const btnSpinner = document.getElementById('analyze-btn-spinner');
+    const progressBarContainer = document.getElementById('progress-bar-container');
+    const progressBar = document.getElementById('progress-bar');
+    const progressPercent = document.getElementById('progress-percent');
+
+    form.addEventListener('submit', function(e) {
+        // Add form validation
+        const fileInput = document.getElementById('logfile');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            e.preventDefault();
+            alert('Please select a file to upload.');
+            return false;
+        }
+        
+        // Don't prevent default - let the form submit normally
+        btn.disabled = true;
+        btnText.textContent = 'Analyzing...';
+        btnSpinner.classList.remove('hidden');
+        progressBarContainer.classList.remove('hidden');
+        let percent = 0;
+        progressBar.style.width = '0%';
+        progressPercent.textContent = '0%';
+        
+        // Simulate progress (since backend is synchronous)
+        const interval = setInterval(() => {
+            percent += Math.floor(Math.random() * 10) + 5;
+            if (percent > 100) percent = 100;
+            progressBar.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+            if (percent === 100) {
+                clearInterval(interval);
+                // Add a small delay to show 100% before redirect
+                setTimeout(() => {
+                    btnText.textContent = 'Redirecting...';
+                }, 500);
+            }
+        }, 300);
+    });
+    
+    // Clear any existing session data on page load and prevent cache issues
+    window.addEventListener('load', function() {
+        // Clear any cached form data
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+        
+        // Add cache-busting headers
+        if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
+            window.location.reload();
+        }
+    });
+    </script>
 </body>
 </html>

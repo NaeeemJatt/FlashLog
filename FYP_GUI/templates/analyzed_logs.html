@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FlashLog - Analysis Results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Cache control meta tags to prevent refresh issues -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        .zoom-in {
+            animation: zoomIn 0.6s ease-out forwards;
+        }
+        .zoom-in-delay-1 {
+            animation: zoomIn 0.6s ease-out 0.1s forwards;
+            opacity: 0;
+        }
+        .zoom-in-delay-2 {
+            animation: zoomIn 0.6s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+        .zoom-in-delay-3 {
+            animation: zoomIn 0.6s ease-out 0.3s forwards;
+            opacity: 0;
+        }
+        .zoom-in-delay-4 {
+            animation: zoomIn 0.6s ease-out 0.4s forwards;
+            opacity: 0;
+        }
+        
+        /* Loading animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Progress bar animation */
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        .progress-animate {
+            animation: progress 2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 w-full bg-white dark:bg-gray-900 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto flex items-center justify-between h-16 px-6">
+            <div class="flex items-center gap-3">
+                <div>
+                    <div class="font-bold text-lg text-gray-900 dark:text-white">FlashLog</div>
+                </div>
+            </div>
+            <a href="{{ url_for('main.index') }}" 
+               class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                ← Back to Upload
+            </a>
+        </div>
+    </nav>
+
+    <main class="pt-20 pb-6 px-[50px]">
+        <!-- Analysis Results Header -->
+        <section class="zoom-in">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1 pl-1 zoom-in-delay-1">Analysis Results</h2>
+            <p class="text-gray-500 dark:text-gray-400 mb-6 pl-1 zoom-in-delay-1">Results from your log analysis.</p>
+            
+            <!-- Results Summary -->
+            <div class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6 zoom-in-delay-2">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ analysis_summary.total_logs }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Total Log Entries</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-red-500">{{ analysis_summary.total_anomalies }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Anomalies Detected</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-500">{{ analysis_summary.success_rate }}%</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Success Rate</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-500">{{ analysis_summary.index_name }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Elasticsearch Index</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination Info -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 zoom-in-delay-3">
+                <div class="flex items-center justify-between">
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                        Showing {{ pagination.start_idx }} to {{ pagination.end_idx }} of {{ pagination.total_results }} results
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                        Page {{ pagination.page }} of {{ pagination.total_pages }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden zoom-in-delay-3">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">#</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Log Entry</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Anomaly</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for result in results %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {{ pagination.start_idx + loop.index0 }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                                    <div class="max-w-md break-words">{{ result.logline }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if result.is_anomaly %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                        Anomaly
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                        Normal
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {{ result.timestamp[:19] if result.timestamp else 'N/A' }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pagination Controls -->
+            {% if pagination.total_pages > 1 %}
+            <div class="mt-6 flex items-center justify-center space-x-2 zoom-in-delay-4">
+                <!-- Previous Page -->
+                {% if pagination.page > 1 %}
+                <a href="{{ url_for('main.analyzed_logs', page=pagination.page-1) }}" 
+                   class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    ← Previous
+                </a>
+                {% else %}
+                <span class="inline-flex items-center px-3 py-2 border border-gray-200 dark:border-gray-700 text-sm font-medium rounded-md text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 cursor-not-allowed">
+                    ← Previous
+                </span>
+                {% endif %}
+
+                <!-- Page Numbers -->
+                {% for page_num in range(1, pagination.total_pages + 1) %}
+                    {% if page_num == pagination.page %}
+                    <span class="inline-flex items-center px-3 py-2 border border-blue-500 text-sm font-medium rounded-md text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900">
+                        {{ page_num }}
+                    </span>
+                    {% elif page_num <= 3 or page_num > pagination.total_pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                    <a href="{{ url_for('main.analyzed_logs', page=page_num) }}" 
+                       class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        {{ page_num }}
+                    </a>
+                    {% elif page_num == 4 and pagination.page > 5 %}
+                    <span class="inline-flex items-center px-3 py-2 text-sm text-gray-500 dark:text-gray-400">...</span>
+                    {% elif page_num == pagination.total_pages - 3 and pagination.page < pagination.total_pages - 4 %}
+                    <span class="inline-flex items-center px-3 py-2 text-sm text-gray-500 dark:text-gray-400">...</span>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Next Page -->
+                {% if pagination.page < pagination.total_pages %}
+                <a href="{{ url_for('main.analyzed_logs', page=pagination.page+1) }}" 
+                   class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Next →
+                </a>
+                {% else %}
+                <span class="inline-flex items-center px-3 py-2 border border-gray-200 dark:border-gray-700 text-sm font-medium rounded-md text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 cursor-not-allowed">
+                    Next →
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Download and Kibana Links -->
+            {% if csv_path %}
+            <div class="mt-6 flex gap-4 zoom-in-delay-4">
+                <a href="{{ url_for('main.download_csv', filename=csv_path.split('/')[-1]) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    📥 Download Results CSV
+                </a>
+                {% if kibana_url %}
+                <a href="{{ kibana_url }}" target="_blank" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    🔍 View in Kibana
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-gray-900 mt-0">
+        <div class="max-w-7xl mx-auto px-6 py-6">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                    Created by <span class="font-semibold text-gray-900 dark:text-white">Naeem Jatt</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <a href="https://github.com/NaeeemJatt" target="_blank" 
+                       class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        GitHub
+                    </a>
+                    <a href="https://naeemashiq.com/" target="_blank" 
+                       class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9m0-9c-5 0-9 4-9 9s4 9 9 9"/>
+                        </svg>
+                        Portfolio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html> 

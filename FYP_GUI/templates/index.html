@@ -42,32 +42,71 @@
             animation: zoomIn 0.6s ease-out 0.4s forwards;
             opacity: 0;
         }
+        
+        /* Results section transitions */
+        .results-section {
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease-out;
+        }
+        
+        .results-section.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .config-section.hide {
+            display: none;
+        }
+        
+        /* Button animation */
+        .btn-analyzing {
+            background: linear-gradient(45deg, #10b981, #059669);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
     <!-- Navbar -->
     <nav class="fixed top-0 left-0 w-full bg-white dark:bg-gray-900 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto flex items-center h-16 px-6">
+        <div class="max-w-7xl mx-auto flex items-center justify-between h-16 px-6">
             <div class="flex items-center gap-3">
                 <div>
                     <div class="font-bold text-lg text-gray-900 dark:text-white">FlashLog</div>
                 </div>
             </div>
+            <button id="back-to-upload" class="hidden inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                ← New Analysis
+            </button>
         </div>
     </nav>
 
     <main class="pt-20 pb-6 px-[50px]">
         <!-- Log Analysis Configuration -->
-        <section class="zoom-in">
+        <section id="config-section" class="zoom-in">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1 pl-1 zoom-in-delay-1">Log Analysis Configuration</h2>
             <p class="text-gray-500 dark:text-gray-400 mb-6 pl-1 zoom-in-delay-1">Configure your log analysis parameters and upload files for anomaly detection.</p>
-    <form method="POST" enctype="multipart/form-data" id="analyze-form">
+            <form id="analyze-form" enctype="multipart/form-data">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <!-- Parser Configuration -->
                     <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-2">
                         <div class="font-semibold text-gray-900 dark:text-white">Parser Configuration</div>
                         <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Configure how your log files will be parsed.</div>
-                        <select name="parser" id="parser" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                        <select name="parser" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
                             <option value="drain">Drain Parser</option>
                             <option value="ael">AEL Parser</option>
                             <option value="iplom">IPLoM Parser</option>
@@ -89,7 +128,7 @@
                             <span class="ml-2 px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200">High Accuracy</span>
                         </div>
                         <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Choose the anomaly detection algorithm.</div>
-                        <select name="model" id="model" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                        <select name="model" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
                             <option value="isolation_forest">Isolation Forest</option>
                             <option value="one_class_svm">One Class SVM</option>
                             <option value="local_outlier_factor">Local Outlier Factor (LOF)</option>
@@ -118,7 +157,7 @@
                     <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-3">
                         <div class="font-semibold text-gray-900 dark:text-white">Elasticsearch Integration</div>
                         <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Configure your Elasticsearch index for log storage and retrieval.</div>
-                        <input type="text" name="index_name" id="index_name" placeholder="e.g., firewall-logs, application-logs" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white mb-2" />
+                        <input type="text" name="index_name" placeholder="e.g., firewall-logs, application-logs" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white mb-2" />
                         <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                             <span>Auto-indexing:</span>
                             <span>Leave blank to automatically create an index with format <code>flashlog-YYYY-MM-DD</code>.</span>
@@ -141,13 +180,80 @@
                         <span id="analyze-btn-spinner" class="hidden animate-spin"><svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg></span>
                     </button>
                 </div>
-                <div id="progress-bar-container" class="w-full mt-4 hidden">
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                        <div id="progress-bar" class="bg-green-500 h-2.5 rounded-full progress-animate" style="width: 0%"></div>
+            </form>
+        </section>
+
+        <!-- Analysis Results Section -->
+        <section id="results-section" class="results-section">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1 pl-1">Analysis Results</h2>
+            <p class="text-gray-500 dark:text-gray-400 mb-6 pl-1">Results from your log analysis.</p>
+            
+            <!-- Results Summary -->
+            <div id="results-summary" class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <div id="total-logs" class="text-2xl font-bold text-gray-900 dark:text-white">-</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Total Log Entries</div>
                     </div>
-                    <div class="text-sm text-gray-600 dark:text-gray-400 mt-1 text-right" id="progress-percent">0%</div>
+                    <div class="text-center">
+                        <div id="total-anomalies" class="text-2xl font-bold text-red-500">-</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Anomalies Detected</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="success-rate" class="text-2xl font-bold text-green-500">-</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Safe Logs</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="index-name" class="text-2xl font-bold text-blue-500">-</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Elasticsearch Index</div>
+                    </div>
                 </div>
-    </form>
+            </div>
+
+            <!-- Results Table -->
+            <div class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-6">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">#</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Log Entry</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- Results will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div id="pagination" class="mt-6 flex items-center justify-between">
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                    Showing <span id="showing-start">1</span> to <span id="showing-end">10</span> of <span id="total-results">0</span> results
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="prev-page" class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <span id="page-info" class="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">Page 1</span>
+                    <button id="next-page" class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex items-center justify-center space-x-4">
+                <a id="download-csv" href="#" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    📥 Download CSV
+                </a>
+                <a id="kibana-link" href="#" target="_blank" class="inline-flex items-center px-4 py-2 border border-blue-300 dark:border-blue-600 text-sm font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors">
+                    🔍 View in Kibana
+                </a>
+            </div>
         </section>
     </main>
 
@@ -179,61 +285,252 @@
     </footer>
 
     <script>
-    // Loading spinner and progress bar logic
+    console.log('Script starting...');
+    
+    // Get DOM elements
     const form = document.getElementById('analyze-form');
     const btn = document.getElementById('analyze-btn');
     const btnText = document.getElementById('analyze-btn-text');
     const btnSpinner = document.getElementById('analyze-btn-spinner');
-    const progressBarContainer = document.getElementById('progress-bar-container');
-    const progressBar = document.getElementById('progress-bar');
-    const progressPercent = document.getElementById('progress-percent');
+    const buttonContainer = btn.parentElement;
+    const configSection = document.getElementById('config-section');
+    const resultsSection = document.getElementById('results-section');
+    const backToUploadBtn = document.getElementById('back-to-upload');
 
-    form.addEventListener('submit', function(e) {
-        // Add form validation
-        const fileInput = document.getElementById('logfile');
-        if (!fileInput.files || fileInput.files.length === 0) {
-            e.preventDefault();
-            alert('Please select a file to upload.');
-            return false;
-        }
-        
-        // Don't prevent default - let the form submit normally
-        btn.disabled = true;
-        btnText.textContent = 'Analyzing...';
-        btnSpinner.classList.remove('hidden');
-        progressBarContainer.classList.remove('hidden');
-        let percent = 0;
-        progressBar.style.width = '0%';
-        progressPercent.textContent = '0%';
-        
-        // Simulate progress (since backend is synchronous)
-        const interval = setInterval(() => {
-            percent += Math.floor(Math.random() * 10) + 5;
-            if (percent > 100) percent = 100;
-            progressBar.style.width = percent + '%';
-            progressPercent.textContent = percent + '%';
-            if (percent === 100) {
-                clearInterval(interval);
-                // Add a small delay to show 100% before redirect
-                setTimeout(() => {
-                    btnText.textContent = 'Redirecting...';
-                }, 500);
-            }
-        }, 300);
+    // Debug: Log all elements
+    console.log('🔍 DOM Elements found:', {
+        form: !!form,
+        btn: !!btn,
+        configSection: !!configSection,
+        resultsSection: !!resultsSection,
+        backToUploadBtn: !!backToUploadBtn
     });
-    
-    // Clear any existing session data on page load and prevent cache issues
-    window.addEventListener('load', function() {
-        // Clear any cached form data
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
-        }
+
+    // Pagination variables
+    let allResults = [];
+    let currentPage = 1;
+    const logsPerPage = 10;
+
+    // Show results function
+    function showResults() {
+        return new Promise((resolve) => {
+            console.log('📊 Showing results...');
+            
+            try {
+                // Show results section
+                resultsSection.classList.add('show');
+                backToUploadBtn.classList.remove('hidden');
+                
+                // Hide config section and button
+                configSection.classList.add('hide');
+                buttonContainer.style.display = 'none';
+                
+                setTimeout(() => {
+                    console.log('✅ Results displayed');
+                    resolve();
+                }, 500);
+            } catch (error) {
+                console.error('❌ Error in showResults:', error);
+                resolve(); // Continue anyway
+            }
+        });
+    }
+
+    // Back to upload button functionality
+    if (backToUploadBtn) {
+        backToUploadBtn.addEventListener('click', function() {
+            // Reset pagination
+            allResults = [];
+            currentPage = 1;
+            
+            // Show config section and hide results
+            configSection.classList.remove('hide');
+            resultsSection.classList.remove('show');
+            backToUploadBtn.classList.add('hidden');
+            buttonContainer.style.display = 'flex'; // Show the button container again
+            
+            // Reset form
+            form.reset();
+            
+            // Reset button state
+            btn.disabled = false;
+            btnText.textContent = '🚀 Upload & Analyze Logs';
+            btnSpinner.classList.add('hidden');
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            console.log('Form submit event triggered');
+            e.preventDefault(); // Stop the normal POST/refresh
+
+            // Validation
+            const fileInput = document.getElementById('logfile');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Please select a file to upload.');
+                return;
+            }
+
+            console.log('File selected:', fileInput.files[0].name);
+
+            // Show button animation
+            btn.classList.add('btn-analyzing');
+            btn.disabled = true;
+            btnText.textContent = '🚀 Analyzing...';
+            btnSpinner.classList.remove('hidden');
+
+            // Build FormData
+            const body = new FormData(form);
+
+            // Send the request
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); // Mark as AJAX request
+            xhr.responseType = 'json';
+            xhr.onload = async () => {
+                console.log('XHR response received:', xhr.status);
+
+                if (xhr.status === 200) {
+                    const data = xhr.response;
+                    console.log('Response data:', data);
+                    
+                    // Debug: Check anomaly distribution in received data
+                    const anomalyCount = data.results.filter(r => Boolean(r.is_anomaly)).length;
+                    const safeCount = data.results.length - anomalyCount;
+                    console.log(`🔍 Frontend received: ${data.results.length} total logs`);
+                    console.log(`🔍 Frontend calculated: ${anomalyCount} anomalies, ${safeCount} safe`);
+                    console.log(`🔍 Backend reported: ${data.summary.total_anomalies} anomalies`);
+                    
+                    // Store all results for pagination
+                    allResults = data.results;
+                    currentPage = 1;
+                    
+                    // Update summary
+                    document.getElementById('total-logs').textContent = data.summary.total_logs;
+                    document.getElementById('total-anomalies').textContent = data.summary.total_anomalies;
+                    document.getElementById('success-rate').textContent = data.summary.total_logs - data.summary.total_anomalies;
+                    document.getElementById('index-name').textContent = data.summary.index_name;
+                    
+                    // Update download and kibana links
+                    document.getElementById('download-csv').href = data.csv_path || '#';
+                    document.getElementById('kibana-link').href = data.kibana_url || '#';
+                    
+                    // Remove button animation and show results directly
+                    console.log('🔄 Analysis complete, removing button animation...');
+                    btn.classList.remove('btn-analyzing');
+                    btn.disabled = false;
+                    btnText.textContent = '🚀 Upload & Analyze Logs';
+                    btnSpinner.classList.add('hidden');
+                    displayResultsPage(1);
+                    await showResults();
+                    
+                    // Scroll to results table
+                    const resultsTable = document.querySelector('#results-section .bg-\\[\\#f8f9fa\\]');
+                    if (resultsTable) {
+                        resultsTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    
+                    console.log('✅ All done!');
+                    
+                } else {
+                    console.error('Error response:', xhr.responseText);
+                    alert('Error during analysis. Please try again.');
+                    btn.classList.remove('btn-analyzing');
+                    btn.disabled = false;
+                    btnText.textContent = '🚀 Upload & Analyze Logs';
+                    btnSpinner.classList.add('hidden');
+                }
+            };
+            xhr.onerror = () => {
+                console.error('XHR error occurred');
+                alert('Upload failed. Please check your connection and try again.');
+                btn.classList.remove('btn-analyzing');
+                btn.disabled = false;
+                btnText.textContent = '🚀 Upload & Analyze Logs';
+                btnSpinner.classList.add('hidden');
+            };
+            xhr.send(body);
+        });
+    } else {
+        console.error('Form element not found!');
+    }
+
+    // Pagination functions
+    function displayResultsPage(page) {
+        const startIndex = (page - 1) * logsPerPage;
+        const endIndex = startIndex + logsPerPage;
+        const pageResults = allResults.slice(startIndex, endIndex);
         
-        // Add cache-busting headers
-        if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
-            window.location.reload();
+        console.log('Displaying page', page, 'with', pageResults.length, 'items');
+        
+        const tableBody = document.getElementById('results-table-body');
+        tableBody.innerHTML = '';
+        
+        pageResults.forEach((result, index) => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
+            
+            // Debug: Log the anomaly value for each result
+            console.log(`Result ${startIndex + index + 1}: is_anomaly = ${result.is_anomaly}, type = ${typeof result.is_anomaly}`);
+            
+            // Ensure proper boolean handling
+            const isAnomaly = Boolean(result.is_anomaly);
+            
+            const anomalyClass = isAnomaly ? 
+                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+            
+            const anomalyText = isAnomaly ? '🚨 Anomaly' : '✅ Safe';
+            const timestamp = result.timestamp ? result.timestamp.substring(0, 19) : 'N/A';
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${startIndex + index + 1}</td>
+                <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                    <div class="max-w-md break-words">${result.logline || 'N/A'}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="${anomalyClass}">${anomalyText}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${timestamp}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+        
+        // Update pagination info
+        updatePaginationInfo(page);
+    }
+
+    function updatePaginationInfo(page) {
+        const totalPages = Math.ceil(allResults.length / logsPerPage);
+        const startIndex = (page - 1) * logsPerPage + 1;
+        const endIndex = Math.min(page * logsPerPage, allResults.length);
+        
+        document.getElementById('showing-start').textContent = startIndex;
+        document.getElementById('showing-end').textContent = endIndex;
+        document.getElementById('total-results').textContent = allResults.length;
+        document.getElementById('page-info').textContent = `Page ${page} of ${totalPages}`;
+        
+        // Update button states
+        document.getElementById('prev-page').disabled = page <= 1;
+        document.getElementById('next-page').disabled = page >= totalPages;
+    }
+
+    // Pagination event listeners
+    document.getElementById('prev-page').addEventListener('click', function() {
+        if (currentPage > 1) {
+            currentPage--;
+            displayResultsPage(currentPage);
+        }
+    });
+
+    document.getElementById('next-page').addEventListener('click', function() {
+        const totalPages = Math.ceil(allResults.length / logsPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            displayResultsPage(currentPage);
         }
     });
     </script>
 </body>
-</html>
+</html> 

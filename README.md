@@ -298,7 +298,4 @@ FYP/
 ```
 
 ## Author
-**Naeem Jatt** - [@NaeeemJatt](https://github.com/NaeeemJatt)
-
-## License
-MIT License
+**Naeem Jatt** - [@NaeemJatt](https://github.com/NaeeemJatt)

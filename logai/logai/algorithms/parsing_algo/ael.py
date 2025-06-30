@@ -15,7 +15,7 @@ import hashlib
 import pandas as pd
 from collections import defaultdict
 from functools import reduce
-from attr import dataclass
+from dataclasses import dataclass
 
 from logai.algorithms.algo_interfaces import ParsingAlgo
 from logai.config_interfaces import Config

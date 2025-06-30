@@ -5,7 +5,11 @@
 # For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
 #
 #
-from attr import dataclass
+import re
+import sys
+import pandas as pd
+from collections import defaultdict
+from dataclasses import dataclass
 
 from logai.algorithms.algo_interfaces import ParsingAlgo
 from logai.config_interfaces import Config
@@ -17,9 +21,6 @@ link: https://github.com/logpai/logparser/blob/master/logparser/IPLoM/IPLoM.py
 """
 
 import copy
-import sys
-import re
-import pandas as pd
 import hashlib
 
 from logai.algorithms.factory import factory

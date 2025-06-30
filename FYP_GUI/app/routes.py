@@ -120,13 +120,18 @@ def index():
         num_anomalies = result_data["is_anomaly"].sum()
         print(f"   - Total logs: {num_logs}")
         print(f"   - Anomalies: {num_anomalies}")
+        
+        # Debug: Check the actual boolean values
+        print("🔍 Debug: Checking anomaly values...")
+        anomaly_values = result_data["is_anomaly"].value_counts()
+        print(f"   - Anomaly value counts: {anomaly_values.to_dict()}")
+        print(f"   - Sample anomaly values: {result_data['is_anomaly'].head(10).tolist()}")
 
         if "timestamp" not in result_data.columns or result_data["timestamp"].isnull().all():
             print("⚠️ Timestamp column missing in file — using system time instead.")
 
-        # Store results in session for the results page
-        print("💾 Converting results to JSON-serializable format...")
         # Convert DataFrame to JSON-serializable format
+        print("💾 Converting results to JSON-serializable format...")
         results_dict = []
         for _, row in result_data.iterrows():
             row_dict = {}
@@ -135,40 +140,69 @@ def index():
                     row_dict[col] = None
                 elif hasattr(value, 'item'):  # Handle numpy types
                     row_dict[col] = value.item()
+                elif isinstance(value, bool):  # Handle boolean values properly
+                    row_dict[col] = bool(value)
                 else:
                     row_dict[col] = str(value)
             results_dict.append(row_dict)
         
         print(f"💾 Converted {len(results_dict)} results to JSON format")
-        print("💾 Storing data in session...")
-        print(f"   - Session before storing: {list(session.keys())}")
         
-        session.permanent = True  # Make session permanent
-        session['analysis_results'] = results_dict
-        session['csv_path'] = csv_path
-        session['kibana_url'] = f"http://localhost:5601/app/discover#/?_a=(index:'{index_name}',columns:!(_source))"
-        session['analysis_summary'] = {
-            'total_logs': int(num_logs),
-            'total_anomalies': int(num_anomalies),
-            'success_rate': round(((num_logs - num_anomalies) / num_logs * 100), 1),
-            'index_name': index_name
-        }
+        # Debug: Check JSON conversion preserved boolean values
+        print("🔍 Debug: Checking JSON conversion...")
+        anomaly_count_in_json = sum(1 for r in results_dict if r.get('is_anomaly') is True)
+        print(f"   - Anomalies in JSON: {anomaly_count_in_json}")
+        print(f"   - Sample JSON anomaly values: {[r.get('is_anomaly') for r in results_dict[:10]]}")
         
-        print(f"   - Session after storing: {list(session.keys())}")
-        print(f"   - Analysis results count: {len(session.get('analysis_results', []))}")
-        print(f"   - CSV path in session: {session.get('csv_path')}")
-        print(f"   - Analysis summary in session: {session.get('analysis_summary')}")
+        # Check if this is an AJAX request (X-Requested-With header)
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
+        if is_ajax:
+            # Return JSON for AJAX requests
+            response_data = {
+                'results': results_dict,
+                'csv_path': csv_path,
+                'kibana_url': f"http://localhost:5601/app/discover#/?_a=(index:'{index_name}',columns:!(_source))",
+                'summary': {
+                    'total_logs': int(num_logs),
+                    'total_anomalies': int(num_anomalies),
+                    'success_rate': round(((num_logs - num_anomalies) / num_logs * 100), 1),
+                    'index_name': index_name
+                }
+            }
+            print(f"✅ Returning JSON response for AJAX request")
+            return jsonify(response_data)
+        else:
+            # Store results in session for traditional form submission
+            print("💾 Storing data in session...")
+            print(f"   - Session before storing: {list(session.keys())}")
+            
+            session.permanent = True  # Make session permanent
+            session['analysis_results'] = results_dict
+            session['csv_path'] = csv_path
+            session['kibana_url'] = f"http://localhost:5601/app/discover#/?_a=(index:'{index_name}',columns:!(_source))"
+            session['analysis_summary'] = {
+                'total_logs': int(num_logs),
+                'total_anomalies': int(num_anomalies),
+                'success_rate': round(((num_logs - num_anomalies) / num_logs * 100), 1),
+                'index_name': index_name
+            }
+            
+            print(f"   - Session after storing: {list(session.keys())}")
+            print(f"   - Analysis results count: {len(session.get('analysis_results', []))}")
+            print(f"   - CSV path in session: {session.get('csv_path')}")
+            print(f"   - Analysis summary in session: {session.get('analysis_summary')}")
 
-        print(f"✅ Analysis completed successfully. Results stored in session.")
-        print(f"   - Total logs: {num_logs}")
-        print(f"   - Anomalies: {num_anomalies}")
-        print(f"   - Results count: {len(results_dict)}")
-        print(f"   - Session keys: {list(session.keys())}")
+            print(f"✅ Analysis completed successfully. Results stored in session.")
+            print(f"   - Total logs: {num_logs}")
+            print(f"   - Anomalies: {num_anomalies}")
+            print(f"   - Results count: {len(results_dict)}")
+            print(f"   - Session keys: {list(session.keys())}")
 
-        # Use traditional redirect instead of JSON response
-        flash(f"✅ {num_logs} log entries processed. {num_anomalies} anomalies detected. Sent to index: {index_name}")
-        print("🔄 Redirecting to /analyzed-logs...")
-        return redirect(url_for('main.analyzed_logs'))
+            # Use traditional redirect for non-AJAX requests
+            flash(f"✅ {num_logs} log entries processed. {num_anomalies} anomalies detected. Sent to index: {index_name}")
+            print("🔄 Redirecting to /analyzed-logs...")
+            return redirect(url_for('main.analyzed_logs'))
 
     return render_template('index.html', metrics=dashboard_metrics)
 

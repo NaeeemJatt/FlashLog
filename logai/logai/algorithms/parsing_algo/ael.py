@@ -73,6 +73,25 @@ class AEL(ParsingAlgo):
         pass
 
     def parse(self, loglines: pd.Series) -> pd.Series:
+        # Apply normalization before parsing for consistent template generation
+        from logai.utils.log_normalizer import LogNormalizer, NormalizationConfig
+        
+        # Initialize normalizer for parsing
+        normalizer_config = NormalizationConfig(
+            normalize_ips=True,
+            normalize_ports=True,
+            normalize_timestamps=True,
+            normalize_uuids=True,
+            normalize_hashes=True,
+            normalize_file_paths=True,
+            normalize_hex_values=True,
+            enable_caching=True
+        )
+        normalizer = LogNormalizer(normalizer_config)
+        
+        # Normalize logs before parsing
+        normalized_loglines = normalizer.normalize_batch(loglines.tolist())
+        loglines = pd.Series(normalized_loglines, index=loglines.index)
         """Parse method to run log parser on given log data.
 
         :param loglines: The raw log data to be parsed.
@@ -96,7 +115,7 @@ class AEL(ParsingAlgo):
         """
         Puts logs into bins according to (# of '<*>', # of token).
         """
-        for idx, log in self.df_log["Content_"].iteritems():
+        for idx, log in self.df_log["Content_"].items():
             para_count = 0
 
             tokens = log.split()

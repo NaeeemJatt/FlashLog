@@ -270,6 +270,20 @@ class FeatureExtractor:
         size_list = event_index_list["event_index_list"].apply(lambda x: len(x))
         return size_list
 
+    
+    def _get_deterministic_group(self, input_df):
+        """
+        Create deterministic grouping based on log content hash.
+        This ensures identical logs are always grouped together.
+        """
+        # Create a hash of the log content for deterministic grouping
+        if 'logline' in input_df.columns:
+            input_df['content_hash'] = input_df['logline'].apply(lambda x: hash(str(x)))
+            return input_df.groupby('content_hash')
+        else:
+            # Fall back to original grouping if no logline column
+            return self._get_group(input_df)
+
     def _get_group(self, input_df):
         group_by = []
         if self.config.group_by_category:

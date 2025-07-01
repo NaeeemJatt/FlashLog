@@ -82,7 +82,9 @@ class OneClassSVMDetector(AnomalyDetectionAlgo):
         :param log_features: Test log features data as pandas DataFrame object.
         :return: A pandas dataframe of the predicted anomaly scores.
         """
-        test_scores = self.model.predict(log_features)
+        # Use score_samples instead of predict to get continuous scores
+        # Lower scores indicate anomalies
+        test_scores = self.model.score_samples(log_features)
         test_scores = pd.DataFrame(
             pd.Series(test_scores, index=log_features.index, name="anom_score")
         )

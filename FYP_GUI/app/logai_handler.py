@@ -74,7 +74,7 @@ def preprocess_log(filepath):
                 raise ValueError("❌ File appears to be empty or contains no valid log entries.")
             
             df = pd.DataFrame({"logline": cleaned_lines})
-            df["timestamp"] = datetime.utcnow().isoformat()
+            df["timestamp"] = pd.Timestamp.now()
             
         except Exception as e:
             raise ValueError(f"❌ Error reading log file: {str(e)}")
@@ -99,7 +99,7 @@ def preprocess_log(filepath):
                     raise ValueError("❌ File appears to be empty or contains no valid log entries.")
                 
                 df = pd.DataFrame({"logline": cleaned_lines})
-                df["timestamp"] = datetime.utcnow().isoformat()
+                df["timestamp"] = pd.Timestamp.now()
                 
             except Exception as e2:
                 raise ValueError(f"❌ Error reading file: {str(e2)}")
@@ -117,7 +117,14 @@ def preprocess_log(filepath):
         raise KeyError("❌ Could not find a log column (e.g., 'logline', 'message') in uploaded file.")
 
     if "timestamp" not in df.columns:
-        df["timestamp"] = datetime.utcnow().isoformat()
+        df["timestamp"] = pd.Timestamp.now()
+    else:
+        # Convert timestamp column to datetime if it's not already
+        try:
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+        except:
+            # If conversion fails, use current time
+            df["timestamp"] = pd.Timestamp.now()
 
     # Clean up loglines
     df.dropna(subset=["logline"], inplace=True)
@@ -159,12 +166,13 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
             "encoding_type": "onehot"
         },
         "feature_extractor_config": {
-            "feature_type": "log_vector",
-            "window_size": 5,
-            "embedding_method": "tfidf"
+            "max_feature_len": 100
         },
         "anomaly_detection_config": {
-            "model_type": model_type
+            "algo_name": model_type,
+            "algo_params": {
+                "nu": 0.1
+            }
         }
     })
 

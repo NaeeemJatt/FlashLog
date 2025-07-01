@@ -426,6 +426,25 @@ class Drain(ParsingAlgo):
             self._add_log_message(l)
 
     def parse(self, logline: pd.Series) -> pd.Series:
+        # Apply normalization before parsing for consistent template generation
+        from logai.utils.log_normalizer import LogNormalizer, NormalizationConfig
+        
+        # Initialize normalizer for parsing
+        normalizer_config = NormalizationConfig(
+            normalize_ips=True,
+            normalize_ports=True,
+            normalize_timestamps=True,
+            normalize_uuids=True,
+            normalize_hashes=True,
+            normalize_file_paths=True,
+            normalize_hex_values=True,
+            enable_caching=True
+        )
+        normalizer = LogNormalizer(normalizer_config)
+        
+        # Normalize logs before parsing
+        normalized_loglines = normalizer.normalize_batch(logline.tolist())
+        logline = pd.Series(normalized_loglines, index=logline.index)
         """Parse method to run log parser on a given log data.
 
         :param logline: The raw log data to be parsed.

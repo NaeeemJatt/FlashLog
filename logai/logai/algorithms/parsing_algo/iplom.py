@@ -24,6 +24,7 @@ import copy
 import hashlib
 
 from logai.algorithms.factory import factory
+from logai.utils.log_normalizer import LogNormalizer, NormalizationConfig
 
 
 class Partition:
@@ -98,6 +99,23 @@ class IPLoM(ParsingAlgo):
         :param loglines: The raw log data.
         :returns: The parsed log data.
         """
+        # Apply normalization before parsing for consistent template generation
+        normalizer_config = NormalizationConfig(
+            normalize_ips=True,
+            normalize_ports=True,
+            normalize_timestamps=True,
+            normalize_uuids=True,
+            normalize_hashes=True,
+            normalize_file_paths=True,
+            normalize_hex_values=True,
+            enable_caching=True
+        )
+        normalizer = LogNormalizer(normalizer_config)
+        
+        # Normalize logs before parsing
+        normalized_loglines = normalizer.normalize_batch(loglines.tolist())
+        loglines = pd.Series(normalized_loglines, index=loglines.index)
+        
         self._Step1(loglines)
         self._Step2()
         self._Step3()

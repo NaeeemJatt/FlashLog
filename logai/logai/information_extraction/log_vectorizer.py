@@ -39,6 +39,27 @@ class LogVectorizer:
     Implement Log Vectorizer to transform raw log data to vectors. It Currently supports various statistical 
     (e.g. TfIdfVectorizer) and neural (Word2Vec, FastText, LogBERT) vectorizer models.
     """
+    def _ensure_deterministic_output(self, vectors):
+        """
+        Ensure deterministic output by sorting and normalizing vectors.
+        """
+        if isinstance(vectors, list):
+            vectors = np.array(vectors)
+        
+        # Sort the vector components to ensure consistent ordering
+        if len(vectors.shape) == 2:
+            # For 2D arrays, sort each row
+            sorted_vectors = np.sort(vectors, axis=1)
+        else:
+            # For 1D arrays, sort the entire array
+            sorted_vectors = np.sort(vectors)
+        
+        # Normalize to ensure consistent scale
+        if np.any(sorted_vectors != 0):
+            sorted_vectors = sorted_vectors / np.linalg.norm(sorted_vectors, axis=1, keepdims=True)
+        
+        return sorted_vectors
+
 
     def __init__(self, config: VectorizerConfig):
         name = config.algo_name.lower()

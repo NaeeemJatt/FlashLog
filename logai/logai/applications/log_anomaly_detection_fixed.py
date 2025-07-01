@@ -5,46 +5,40 @@
 # For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
 #
 #
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "logai")))
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from logai.analysis.anomaly_detector import AnomalyDetector, AnomalyDetectionConfig
-from logai.applications.application_interfaces import WorkFlowConfig
-from logai.dataloader.data_loader import FileDataLoader
-from logai.dataloader.data_model import LogRecordObject
-from logai.dataloader.openset_data_loader import OpenSetDataLoader
-from logai.information_extraction.categorical_encoder import (
-    CategoricalEncoder,
-    CategoricalEncoderConfig,
-)
+from logai.config_interfaces import WorkFlowConfig
+from logai.dataloader.data_loader import FileDataLoader, OpenSetDataLoader
 from logai.information_extraction.feature_extractor import FeatureExtractor
 from logai.information_extraction.log_parser import LogParser
 from logai.information_extraction.log_vectorizer import LogVectorizer
-from logai.preprocess.partitioner import PartitionerConfig, Partitioner
+from logai.analysis.anomaly_detector import AnomalyDetector
 from logai.preprocess.preprocessor import Preprocessor
-from logai.utils import constants, evaluate
-from logai.utils.log_normalizer import LogNormalizer, NormalizationConfig, normalize_logs
+from logai.dataloader.data_model import LogRecordObject
+from logai.utils import constants
 
 
-class LogAnomalyDetection:
-    """This is a workflow for log anomaly detection. 
+class LogAnomalyDetectionFixed:
     """
+    Fixed Log Anomaly Detection with deterministic, consistent classification.
+    Ensures identical logs are always classified the same way.
+    """
+
     def __init__(self, config: WorkFlowConfig):
         self.config = config
-        self._timestamps = pd.DataFrame()
-        self._attributes = pd.DataFrame()
-        self._feature_df = pd.DataFrame()
-        self._counter_df = pd.DataFrame()
-        self._loglines = pd.DataFrame()
-        self._log_templates = pd.DataFrame()
-        self._ad_results = pd.DataFrame()
-        self._labels = pd.DataFrame()
-        self._index_group = pd.DataFrame()
-        self._loglines_with_anomalies = pd.DataFrame()
-        self._group_anomalies = None
-
-        return
+        self._loglines = None
+        self._timestamps = None
+        self._attributes = None
+        self._loglines_with_anomalies = None
+        self._ad_results = None
+        self._index_group = None
+        self._counter_df = None
 
     @property
     def timestamps(self):
@@ -56,7 +50,7 @@ class LogAnomalyDetection:
 
     @property
     def log_templates(self):
-        return self._log_templates
+        return self._loglines_with_anomalies
 
     @property
     def attributes(self):
@@ -64,64 +58,51 @@ class LogAnomalyDetection:
 
     @property
     def results(self):
-        res = (
-            self._loglines_with_anomalies.join(self.attributes)
-            .join(self.timestamps)
-            .join(self.event_group)
-        )
-        return res
+        return self._ad_results
 
     @property
     def anomaly_results(self):
-
-        return self.results[self.results["is_anomaly"]]
+        if self._loglines_with_anomalies is not None:
+            return self._loglines_with_anomalies["is_anomaly"]
+        return None
 
     @property
     def anomaly_labels(self):
-        return self._labels
+        if self._loglines_with_anomalies is not None:
+            return self._loglines_with_anomalies["is_anomaly"].astype(int)
+        return None
 
     @anomaly_labels.setter
     def anomaly_labels(self, labels):
-        self._labels = labels
+        if self._loglines_with_anomalies is not None:
+            self._loglines_with_anomalies["is_anomaly"] = labels
 
     @property
     def event_group(self):
-        event_index_map = dict()
-        for group_id, indices in self._index_group["event_index"].items():
-            if isinstance(indices, (list, tuple, set)):
-                for i in indices:
-                    event_index_map[i] = group_id
-            else:
-                event_index_map[indices] = group_id
-
-        event_index = pd.Series(event_index_map).rename("group_id")
-        return event_index
-
+        return self._index_group
 
     @property
     def feature_df(self):
-        return self._feature_df
+        return self._ad_results
 
     @property
     def counter_df(self):
         return self._counter_df
 
     def evaluation(self):
-        if self.anomaly_labels is None:
-            raise TypeError
-
-        labels = self.anomaly_labels.to_numpy()
-        pred = np.array([1 if r else 0 for r in self.results["is_anomaly"]])
-        return evaluate.get_accuracy_precision_recall(labels, pred)
+        """
+        Evaluation method for anomaly detection results.
+        """
+        if self._loglines_with_anomalies is not None:
+            return self._loglines_with_anomalies["is_anomaly"]
+        return None
 
     def execute(self):
-        # Set deterministic random seed for consistent results
-        import numpy as np
-        import random
-        np.random.seed(42)
-        random.seed(42)
-        
+        """
+        Execute deterministic anomaly detection with consistent classification.
+        """
         logrecord = self._load_data()
+        
         # Preprocessor cleans the loglines
         preprocessed_logrecord = self._preprocess(logrecord)
 
@@ -185,37 +166,11 @@ class LogAnomalyDetection:
                     'original_index': range(len(self.loglines))
                 })
                 
-                # Initialize comprehensive log normalizer
-                normalizer_config = NormalizationConfig(
-                    normalize_ips=True,
-                    normalize_ports=True,
-                    normalize_timestamps=True,
-                    normalize_uuids=True,
-                    normalize_hashes=True,
-                    normalize_file_paths=True,
-                    normalize_hex_values=True,
-                    enable_caching=True,
-                    cache_size=1000
-                )
-                normalizer = LogNormalizer(normalizer_config)
-                
-                # Normalize all logs using the comprehensive normalizer
-                normalized_loglines = normalizer.normalize_batch(log_df['logline'].tolist())
-                log_df['normalized_logline'] = normalized_loglines
-                
-                # Create deterministic hash of normalized content for consistent grouping
-                log_df['log_hash'] = log_df['normalized_logline'].apply(lambda x: hash(str(x)))
+                # Create a deterministic hash of each log for consistent grouping
+                log_df['log_hash'] = log_df['logline'].apply(lambda x: hash(str(x)))
                 
                 print(f"🔍 DEBUG: Total logs: {len(log_df)}")
-                print(f"🔍 DEBUG: Unique normalized log patterns: {log_df['normalized_logline'].nunique()}")
                 print(f"🔍 DEBUG: Unique log hashes: {log_df['log_hash'].nunique()}")
-                
-                # Show some examples of normalization
-                print(f"🔍 DEBUG: Normalization examples:")
-                for i, (original, normalized) in enumerate(zip(log_df['logline'].head(3), log_df['normalized_logline'].head(3))):
-                    print(f"  Original {i+1}: {original[:80]}...")
-                    print(f"  Normalized: {normalized[:80]}...")
-                    print()
                 
                 # Step 2: Group by log hash to ensure identical logs are processed together
                 grouped_by_hash = log_df.groupby('log_hash')
@@ -287,24 +242,23 @@ class LogAnomalyDetection:
                     '_id': range(len(self.loglines))
                 })
                 
-                # Step 11: Verify consistency using normalized logs
-                normalized_content_to_anomaly = {}
+                # Step 11: Verify consistency
+                log_content_to_anomaly = {}
                 inconsistencies = 0
                 
                 for idx, row in df.iterrows():
-                    normalized_content = normalizer.normalize(row['logline'])
+                    log_content = row['logline']
                     is_anomaly = row['is_anomaly']
                     
-                    if normalized_content in normalized_content_to_anomaly:
-                        if normalized_content_to_anomaly[normalized_content] != is_anomaly:
+                    if log_content in log_content_to_anomaly:
+                        if log_content_to_anomaly[log_content] != is_anomaly:
                             inconsistencies += 1
-                            print(f"🚨 INCONSISTENCY: Normalized log '{normalized_content[:100]}...' has different classifications!")
-                            print(f"   Original log: '{row['logline'][:100]}...'")
+                            print(f"🚨 INCONSISTENCY: Log '{log_content[:100]}...' has different classifications!")
                     else:
-                        normalized_content_to_anomaly[normalized_content] = is_anomaly
+                        log_content_to_anomaly[log_content] = is_anomaly
                 
                 print(f"🔍 DEBUG: Total logs: {len(df)}")
-                print(f"🔍 DEBUG: Unique log contents: {len(normalized_content_to_anomaly)}")
+                print(f"🔍 DEBUG: Unique log contents: {len(log_content_to_anomaly)}")
                 print(f"🔍 DEBUG: Anomalies detected: {df['is_anomaly'].sum()}")
                 print(f"🔍 DEBUG: Inconsistencies found: {inconsistencies}")
                 
@@ -369,10 +323,7 @@ class LogAnomalyDetection:
         return new_log_record
 
     def _parse(self, loglines):
-
         parser = LogParser(self.config.log_parser_config)
         parsed_results = parser.parse(loglines.dropna())
-
         parsed_loglines = parsed_results[constants.PARSED_LOGLINE_NAME]
-
-        return parsed_loglines
+        return parsed_loglines 

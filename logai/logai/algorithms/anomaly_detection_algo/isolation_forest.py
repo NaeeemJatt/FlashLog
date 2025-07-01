@@ -62,7 +62,7 @@ class IsolationForestDetector(AnomalyDetectionAlgo):
             n_jobs=params.n_jobs,
             random_state=params.random_state,
             verbose=params.verbose,
-            warm_start=params.verbose,
+            warm_start=params.warm_start,
         )
 
     def fit(self, log_features: pd.DataFrame):

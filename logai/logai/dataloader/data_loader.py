@@ -148,12 +148,15 @@ class FileDataLoader:
                                 ).rename(constants.LOG_TIMESTAMPS)
                             )
                         selected.columns = [constants.LOG_TIMESTAMPS]
-                        if self.config.infer_datetime and self.config.datetime_format:
-                            datetime_format = self.config.datetime_format
+                        if self.config.infer_datetime:
+                            # Always convert to datetime, let pandas auto-detect format
                             selected[constants.LOG_TIMESTAMPS] = pd.to_datetime(
                                 selected[constants.LOG_TIMESTAMPS],
-                                format=datetime_format,
+                                errors='coerce'
                             )
+                            # Fill any failed conversions with current time
+                            if selected[constants.LOG_TIMESTAMPS].isna().any():
+                                selected[constants.LOG_TIMESTAMPS] = selected[constants.LOG_TIMESTAMPS].fillna(pd.Timestamp.now())
 
                     setattr(log_record, field, selected)
         # log_record.__post_init__()

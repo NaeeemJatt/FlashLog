@@ -140,7 +140,15 @@ def index():
                     row_dict[col] = None
                 elif hasattr(value, 'item'):  # Handle numpy types
                     row_dict[col] = value.item()
-                elif isinstance(value, bool):  # Handle boolean values properly
+                elif col == 'is_anomaly':  # Handle anomaly flag specifically
+                    # Convert to proper boolean: 1.0/1 = True, 0.0/0 = False
+                    if isinstance(value, (int, float)):
+                        row_dict[col] = bool(value)
+                    elif isinstance(value, str):
+                        row_dict[col] = float(value) == 1.0
+                    else:
+                        row_dict[col] = bool(value)
+                elif isinstance(value, bool):  # Handle other boolean values properly
                     row_dict[col] = bool(value)
                 else:
                     row_dict[col] = str(value)

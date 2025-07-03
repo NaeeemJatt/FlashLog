@@ -104,7 +104,7 @@ def preprocess_log(filepath):
             except Exception as e2:
                 raise ValueError(f"❌ Error reading file: {str(e2)}")
 
-    # Normalize columns
+    # Normalize columns FIRST
     df.columns = [col.strip().lower() for col in df.columns]
 
     # Auto-detect log column
@@ -116,31 +116,71 @@ def preprocess_log(filepath):
     if "logline" not in df.columns:
         raise KeyError("❌ Could not find a log column (e.g., 'logline', 'message') in uploaded file.")
 
-    if "timestamp" not in df.columns:
+    # Auto-detect timestamp column (handle different case variations, now all lowercased)
+    timestamp_found = False
+    for timestamp_candidate in ["timestamp", "time", "date", "datetime"]:
+        if timestamp_candidate in df.columns:
+            df.rename(columns={timestamp_candidate: "timestamp"}, inplace=True)
+            timestamp_found = True
+            print(f"✅ Found timestamp column: {timestamp_candidate} -> timestamp")
+            break
+    
+    if not timestamp_found:
+        print("⚠️  No timestamp column found, adding current time")
         df["timestamp"] = pd.Timestamp.now()
     else:
-        # Convert timestamp column to datetime if it's not already
+        # Robustly convert timestamp column to datetime
         try:
-            df["timestamp"] = pd.to_datetime(df["timestamp"])
-        except:
-            # If conversion fails, use current time
+            if pd.api.types.is_numeric_dtype(df["timestamp"]):
+                # Handle Unix epoch timestamps
+                df["timestamp"] = pd.to_datetime(df["timestamp"], unit='s', errors='coerce')
+            else:
+                # Handle string timestamps
+                df["timestamp"] = pd.to_datetime(df["timestamp"], errors='coerce')
+            # Fill any failed conversions with current time
+            if df["timestamp"].isna().any():
+                print("⚠️  Some timestamp conversions failed, filling with current time")
+                df["timestamp"] = df["timestamp"].fillna(pd.Timestamp.now())
+        except Exception as e:
+            print(f"⚠️  Warning: Timestamp conversion failed: {e}")
+            print("🔧 Using current time as fallback")
             df["timestamp"] = pd.Timestamp.now()
 
     # Clean up loglines
     df.dropna(subset=["logline"], inplace=True)
     df = df[df["logline"].astype(str).str.strip() != ""]  # Remove empty strings
     
+    print(f"[DEBUG] Columns after normalization and cleaning: {list(df.columns)}")
     if df.empty:
         raise ValueError("❌ No valid log entries found after cleaning.")
 
     cleaned_path = filepath.replace(".csv", "_cleaned.csv").replace(".txt", "_cleaned.csv").replace(".log", "_cleaned.csv")
     df.to_csv(cleaned_path, index=False)
+    # Check for timestamp column after normalization
     return cleaned_path, "timestamp" in df.columns
 
 def process_log_file(filepath, parser_algo, model_type, index_name):
     start_time = time.time()
     
     cleaned_path, has_timestamp = preprocess_log(filepath)
+
+    # Load the cleaned data and ensure timestamp is in datetime format
+    df = pd.read_csv(cleaned_path)
+    if has_timestamp and 'timestamp' in df.columns:
+        print(f"🔧 Converting timestamp column to datetime format...")
+        try:
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+            # Fill any failed conversions with current time
+            if df['timestamp'].isna().any():
+                print("⚠️  Some timestamp conversions failed, filling with current time")
+                df['timestamp'] = df['timestamp'].fillna(pd.Timestamp.now())
+            print(f"✅ Timestamp column converted to datetime format")
+        except Exception as e:
+            print(f"⚠️  Warning: Timestamp conversion failed: {e}")
+            print("🔧 Using current time as fallback")
+            df['timestamp'] = pd.Timestamp.now()
+        # Save the updated DataFrame with proper datetime format
+        df.to_csv(cleaned_path, index=False)
 
     dimensions = {
         "body": ["logline"]
@@ -151,7 +191,9 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
     config = WorkFlowConfig.from_dict({
         "data_loader_config": {
             "filepath": cleaned_path,
-            "dimensions": dimensions
+            "dimensions": dimensions,
+            "infer_datetime": True,
+            "datetime_format": None  # Let pandas auto-detect the format
         },
         "preprocessor_config": {
             "custom_delimiters_regex": []
@@ -171,12 +213,33 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
         "anomaly_detection_config": {
             "algo_name": model_type,
             "algo_params": {
-                "nu": 0.1
+                "nu": 0.05 if model_type == "one_class_svm" else 0.1  # More conservative for One-Class SVM
             }
         }
     })
 
     detector = LogAnomalyDetection(config)
+    
+    # Special handling for ETS algorithm which requires proper timestamps
+    if model_type == "ets":
+        print("🔍 ETS algorithm detected - ensuring proper timestamp format...")
+        # Check if we have timestamps in the data
+        if not has_timestamp:
+            print("❌ ERROR: ETS algorithm requires timestamps, but none found in data!")
+            print("🔧 Please use a log file with timestamp column or choose a different algorithm.")
+            raise ValueError("ETS algorithm requires timestamps in the log data")
+        
+        # Verify timestamps are in datetime format
+        try:
+            sample_timestamp = detector.timestamps.iloc[0] if not detector.timestamps.empty else None
+            if sample_timestamp is not None:
+                print(f"✅ Timestamp format verified: {type(sample_timestamp)}")
+                print(f"✅ Sample timestamp: {sample_timestamp}")
+            else:
+                print("⚠️  Warning: No timestamps found in detector data")
+        except Exception as e:
+            print(f"⚠️  Warning: Could not verify timestamp format: {e}")
+    
     detector.execute()
     results = detector.results
     
@@ -191,7 +254,7 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
         
         # If all logs are marked as anomalies, this might indicate an issue
         if anomaly_count == len(results):
-            print("⚠️  Warning: All logs marked as anomalies. This might indicate a model issue.")
+            print("⚠️  Warning: ALL logs marked as anomalies. This indicates a model issue.")
             print("🔧 Attempting to adjust anomaly detection...")
             
             # Try different approaches based on the model type
@@ -220,7 +283,7 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
                 print("🔧 Retrying with adjusted One-Class SVM parameters...")
                 try:
                     config_dict = config.to_dict()
-                    config_dict["anomaly_detection_config"]["nu"] = 0.1  # Expect 10% anomalies
+                    config_dict["anomaly_detection_config"]["nu"] = 0.05  # Expect only 5% anomalies
                     
                     adjusted_config = WorkFlowConfig.from_dict(config_dict)
                     detector = LogAnomalyDetection(adjusted_config)
@@ -238,6 +301,12 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
             else:
                 # For other models, apply manual threshold adjustment
                 apply_manual_threshold_adjustment(results)
+        
+        # If too many anomalies detected (but not all), just warn but don't adjust
+        elif anomaly_count > len(results) * 0.8:  # More than 80% anomalies
+            print(f"⚠️  Warning: High anomaly rate detected ({anomaly_count/len(results)*100:.1f}%).")
+            print("🔧 This might be normal for your dataset, but consider adjusting model parameters.")
+            print("🔧 Current results will be preserved.")
         
         # If no anomalies detected, this might also be suspicious
         elif anomaly_count == 0:
@@ -289,10 +358,11 @@ def apply_manual_threshold_adjustment(results, conservative=False):
         print(f"🔧 New anomaly count: {results['is_anomaly'].sum()}")
         
     else:
-        # If no score column, use a simple approach based on log patterns
-        print("🔧 No score column found, using pattern-based adjustment...")
-        # Mark every 10th log as anomaly (10% rate)
+        # If no score column, use a very conservative approach
+        print("🔧 No score column found, using very conservative pattern-based adjustment...")
+        # Mark only every 20th log as anomaly (5% rate) instead of every 10th
         results['is_anomaly'] = False
-        for i in range(9, len(results), 10):  # Every 10th log starting from 10th
+        for i in range(19, len(results), 20):  # Every 20th log starting from 20th
             results.iloc[i, results.columns.get_loc('is_anomaly')] = True
-        print(f"🔧 Applied pattern-based adjustment - Anomalies: {results['is_anomaly'].sum()}")
+        print(f"🔧 Applied conservative pattern-based adjustment - Anomalies: {results['is_anomaly'].sum()}")
+        print(f"🔧 This is a fallback method and may not reflect actual anomalies!")

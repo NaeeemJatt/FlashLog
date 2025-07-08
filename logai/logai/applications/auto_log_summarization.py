@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import logging
 
 import pandas as pd
@@ -17,16 +11,8 @@ from logai.information_extraction.log_parser import LogParser
 from logai.preprocess.preprocessor import Preprocessor
 from logai.utils import constants
 
-
 class AutoLogSummarization:
-    """
-    The unified framework for log parsing analysis.
-    How to use, the design of this analysis app should follow the general workflow of
-    automated log parsing. The workflow should be able to control solely by `WorkFlowConfig`.
-
-    :param config: The configuration that controls the behavior this app.
-    """
-
+    
     def __init__(self, config: WorkFlowConfig):
         
         self.config = config
@@ -50,12 +36,7 @@ class AutoLogSummarization:
         return self._parsing_results[constants.PARSED_LOGLINE_NAME].unique()
 
     def get_parameter_list(self, log_pattern):
-        """
-        For a given log pattern, return the dynamic parameters.
         
-        :param log_pattern: The input log pattern.
-        :return: The parameter list with Values, valuecounts and position.
-        """
         para_list = pd.DataFrame(None, columns=["position", "value_counts", "values"])
         if self._parsing_results.empty or not log_pattern:
             return para_list
@@ -77,21 +58,15 @@ class AutoLogSummarization:
         return para_list
 
     def recognize_parameter_entity(self, para_list):
-        """
-        Placeholder for log parameter entity recognization
-        """
+        
         pass
 
     def summarize_numeric_paramters(self, paras: list):
-        """
-        Placeholder for numeric parameter summarization
-        """
+        
         pass
 
     def find_log_pattern(self, logline: str, return_para_list: bool = True):
-        """
-        Find the log pattern for a given logline, return all dynamic parameters in this log pattern if needed.
-        """
+        
         log_pattern = None
         para_list = None
         if not self._parsing_results.empty:
@@ -114,10 +89,7 @@ class AutoLogSummarization:
         return log_pattern, para_list
 
     def execute(self):
-        """
-        Execute auto log parsing analysis. Store the results and index for searching.
-        """
-        # load data
+        
         logrecord = self._load_data()
 
         if not logrecord.attributes.empty:
@@ -126,7 +98,6 @@ class AutoLogSummarization:
         if not logrecord.timestamp.empty:
             self._timestamp = logrecord.timestamp
 
-        # preprocess
         preprocessed_loglines = self._preprocess(logrecord)
 
         parser = LogParser(self.config.log_parser_config)
@@ -161,7 +132,6 @@ class AutoLogSummarization:
     def _preprocess(self, logrecord: LogRecordObject):
         logline = logrecord.body[constants.LOGLINE_NAME]
 
-        # Preprocessor cleans the loglines
         preprocessor = Preprocessor(self.config.preprocessor_config)
         preprocessed_loglines, _ = preprocessor.clean_log(logline)
 

@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 
 from logai.dataloader.data_loader import DataLoaderConfig, FileDataLoader
@@ -19,7 +13,6 @@ TEST_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "test_
 TEST_OUTPUT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "temp_output"
 )
-
 
 class TestLogRecordObject:
     def setup(self):
@@ -121,6 +114,3 @@ class TestLogRecordObject:
         filtered_ids = logrecord.span_id[constants.SPAN_ID]
         assert body_to_filter.eq(filtered_body).all(), "logrecord bodies do not match"
         assert ids_to_filter.eq(filtered_ids).all(), "logrecord ids do not match"
-
-
-

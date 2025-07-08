@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 from torch import nn
 from logai.algorithms.nn_model.forecast_nn.base_nn import (
     ForecastBasedNN,
@@ -13,30 +7,20 @@ from logai.algorithms.nn_model.forecast_nn.base_nn import (
 from attr import dataclass
 from logai.algorithms.vectorization_algo.forecast_nn import ForecastNNVectorizedDataset
 
-
 @dataclass
 class TransformerParams(ForecastBasedNNParams):
-    """Config for transformer based log representation learning.
-
-    :param nhead: number of attention heads.
-    :param num_layers: number of hidden layers in the neural network.
-    """
-
+    
     nhead: int = 4
     num_layers: int = 1
 
-
 class Transformer(ForecastBasedNN):
-    """Transformer based model for learning log representation through a self-supervised forecasting task over
-    log sequences.
-    """
-
+    
     def __init__(self, config: TransformerParams):
         super().__init__(config)
         self.config = config
         self.config.model_name = "transformer"
         num_labels = self.meta_data["num_labels"]
-        # self.cls = torch.zeros(1, 1, self.config.embedding_dim).to(self.device)
+
         encoder_layer = nn.TransformerEncoderLayer(
             self.config.embedding_dim, self.config.nhead, self.config.hidden_size
         )
@@ -48,11 +32,7 @@ class Transformer(ForecastBasedNN):
         self.prediction_layer = nn.Linear(self.config.embedding_dim, num_labels)
 
     def forward(self, input_dict):
-        """Forward method of transformer based model.
-
-        :param input_dict: dict containing the session_idx, features, window_anomalies and window_labels as in ForecastNNVectorizedDataset object.
-        :return: dict containing loss and prediction tensor.
-        """
+        
         if self.label_type == "anomaly":
             y = input_dict[ForecastNNVectorizedDataset.window_anomalies].long().view(-1)
         elif self.label_type == "next_log":

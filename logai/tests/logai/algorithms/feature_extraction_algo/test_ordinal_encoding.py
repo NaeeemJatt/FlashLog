@@ -1,14 +1,7 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import pandas as pd
 
 from logai.algorithms.categorical_encoding_algo.ordinal_encoding import OrdinalEncodingParams, OrdinalEncoding
-
 
 class TestOrdinalEncoding:
     def setup(self):
@@ -33,4 +26,3 @@ class TestOrdinalEncoding:
 
         assert isinstance(res, pd.DataFrame), "results not in pandas.DataFrame"
         assert len(res.columns) == 2, "encoding length does not match"
-

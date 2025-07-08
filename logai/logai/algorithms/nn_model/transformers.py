@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import numpy as np
 import pandas as pd
 import torch
@@ -24,18 +18,14 @@ from transformers import (
 from logai.config_interfaces import Config
 from logai.utils import constants
 
-
 @dataclass
 class TransformerAlgoConfig(Config):
-    """Config class for Transformer based model for log classification tasks.
-    """
+    
     tokenizer_config: dict = {"name": "auto", "model": "bert-base-cased"}
     trainer_config: dict = {}
 
-
 class LogDataset(torch.utils.data.Dataset):
-    """Wrapper class for Log Dataset, to wrap over torch Dataset class.
-    """
+    
     def __init__(self, encodings, labels):
         self.encodings = encodings
         self.labels = labels
@@ -47,7 +37,6 @@ class LogDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.labels)
-
 
 class TransformerAlgo:
     """HuggingFace Transformer based Pretrained Language model (e.g. "bert-base-cased"), 
@@ -69,21 +58,12 @@ class TransformerAlgo:
         return
 
     def save(self, output_dir: str):
-        """Save model in given directory.
-
-        :param output_dir: The path to output directory where model should be dumped.
-        """
+        
         self.trainer.save_model(output_dir)
         return
 
     def train(self, train_logs: pd.Series, train_labels: pd.Series):
-        """Train method for Transformer based pretrained language model with
-        a sequence classification head for supervised log classification task. 
-        Internally this method also splits the available training logs into train and dev data.
-
-        :param train_logs: The training log vectors data (after LogVectorizer).
-        :param train_labels: The training label data.
-        """
+        
         train_logs = train_logs.rename(constants.LOG_EVENTS)
         if not self.tokenizer:
             if self.config.tokenizer_config["name"] == "auto":
@@ -126,18 +106,13 @@ class TransformerAlgo:
             args=training_args,
             train_dataset=tokenized_train_datasets,
             eval_dataset=tokenized_val_datasets,
-            # compute_metrics=self._compute_metrics,
+
         )
 
         self.trainer.train()
 
     def train_with_native_torch(self, train_logs: pd.Series, train_labels: pd.Series):
-        """
-        Train models in native torch way.
-
-        :param train_logs: The training log features data (after LogVectorizer).
-        :param train_labels: The label data for training logs.
-        """
+        
         if not self.tokenizer:
             if self.config.tokenizer_config["name"] == "auto":
                 self.tokenizer = AutoTokenizer.from_pretrained(
@@ -161,15 +136,7 @@ class TransformerAlgo:
         return
 
     def predict(self, test_logs: pd.Series, test_labels: pd.Series) -> Tuple[pd.Series, np.ndarray, Dict[str, float]]:
-        """Predict method for running evaluation on test log data.
-
-        :param test_logs: The test log features data (output of LogVectorizer).
-        :param test_labels: The labels of test log data.
-        :return: - res (pd.Series): Predicted test labels as pandas Series object.
-            - label_ids (`np.ndarray`, *optional*): True test labels (if the dataset contained some).
-            - metrics (`Dict[str, float]`, *optional*): The potential dictionary of metrics.
-
-        """
+        
         test_logs = test_logs.rename(constants.LOG_EVENTS)
         if not self.tokenizer:
             if self.config.tokenizer_config["name"] == "auto":

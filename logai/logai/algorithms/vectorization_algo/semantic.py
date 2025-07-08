@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import gensim
 import numpy as np
 import pandas as pd
@@ -20,7 +14,6 @@ from logai.algorithms.algo_interfaces import VectorizationAlgo
 from logai.config_interfaces import Config
 from logai.utils.functions import pad
 from logai.algorithms.factory import factory
-
 
 @dataclass
 class SemanticVectorizerParams(Config):
@@ -44,17 +37,9 @@ class SemanticVectorizerParams(Config):
     embedding_type: str = "fasttext"
     model_save_dir: str = None
 
-
 @factory.register("vectorization", "semantic", SemanticVectorizerParams)
 class Semantic(VectorizationAlgo):
-    """
-    Semantic vectorizer to convert loglines into token ids based on a embedding model and vocabulary
-    (like word2vec, glove and fastText). It supports either pretrained models and pretrained vocabulary
-    or training word embedding models like Word2Vec or FastText on the given training data.
-
-    :param params: A config object for semantic vectorizer.
-    """
-
+    
     def __init__(self, params: SemanticVectorizerParams):
         
         self.params = params
@@ -92,13 +77,7 @@ class Semantic(VectorizationAlgo):
         return token_list
 
     def fit(self, loglines: pd.Series):
-        """Fit method to train semantic vectorizer.
-
-        :param loglines: A pandas Series object containing the dataset on
-            which semantic vectorizer is trained (and the vocab is built).
-            Each data instance should be a logline or sequence of loglines
-            concatenated by separator token.
-        """
+        
         if (
             self.params.model_save_dir
             and os.path.exists(self.vocab_filename)
@@ -116,7 +95,7 @@ class Semantic(VectorizationAlgo):
 
             doc_words = set(doc)
             if self.params.embedding_type.lower() == "glove":
-                # Use Word2Vec for vectorization
+
                 if self.train_embedding_model:
                     self.model = gensim.models.Word2Vec(
                         doc,
@@ -198,12 +177,7 @@ class Semantic(VectorizationAlgo):
                     np.save(self.embed_mat_filename, self.embed_matrix)
 
     def transform(self, loglines: pd.Series) -> pd.Series:
-        """Transform method to run semantic vectorizer on loglines.
-
-        :param loglines: The pandas Series containing the data to be vectorized.
-            Each data instance should be a logline or sequence of loglines concatenated by separator token.
-        :return: The vectorized log data.
-        """
+        
         log_vectors = []
         count = 0
         for ll in loglines:
@@ -222,7 +196,5 @@ class Semantic(VectorizationAlgo):
         return log_vector_series
 
     def summary(self):
-        """
-        Generate model summary.
-        """
+        
         return self.model.summary()

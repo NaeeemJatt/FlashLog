@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import pandas as pd
 from attr import dataclass
 
@@ -12,15 +6,9 @@ import logai.algorithms.vectorization_algo
 from logai.config_interfaces import Config
 from logai.algorithms.factory import factory
 
-
 @dataclass
 class VectorizerConfig(Config):
-    """Config class for Vectorizer. 
     
-    :param algo_name: The name of the vectorizer algorithm.
-    :param algo_param: The parameters of the vectorizer algorithm .
-    :param custom_param: Additional custom parameters to be passed to the vectorizer algorithm.
-    """
     algo_name: str = "word2vec"
     algo_param: object = None
     custom_param: object = None
@@ -33,33 +21,24 @@ class VectorizerConfig(Config):
         )
         return config
 
-
 class LogVectorizer:
-    """
-    Implement Log Vectorizer to transform raw log data to vectors. It Currently supports various statistical 
-    (e.g. TfIdfVectorizer) and neural (Word2Vec, FastText, LogBERT) vectorizer models.
-    """
+    
     def _ensure_deterministic_output(self, vectors):
-        """
-        Ensure deterministic output by sorting and normalizing vectors.
-        """
+        
         if isinstance(vectors, list):
             vectors = np.array(vectors)
         
-        # Sort the vector components to ensure consistent ordering
         if len(vectors.shape) == 2:
-            # For 2D arrays, sort each row
+
             sorted_vectors = np.sort(vectors, axis=1)
         else:
-            # For 1D arrays, sort the entire array
+
             sorted_vectors = np.sort(vectors)
         
-        # Normalize to ensure consistent scale
         if np.any(sorted_vectors != 0):
             sorted_vectors = sorted_vectors / np.linalg.norm(sorted_vectors, axis=1, keepdims=True)
         
         return sorted_vectors
-
 
     def __init__(self, config: VectorizerConfig):
         name = config.algo_name.lower()
@@ -70,16 +49,9 @@ class LogVectorizer:
         )
 
     def fit(self, loglines: pd.Series):
-        """Fit method for LogVectorizer, to train the vectorizer model on the training data.
         
-        :param loglines: A pandas Series object containing the training raw log data.
-        """
         self.vectorizer.fit(loglines)
 
     def transform(self, loglines: pd.Series) -> pd.Series:
-        """Transform method for LogVectorizer, to transform the raw log text data to vectors.
         
-        :param loglines: A pandas Series object containing the test raw log data.
-        :return: A pandas Series object containing the vectorized log data.
-        """
         return self.vectorizer.transform(loglines)

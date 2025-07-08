@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 
 import pandas as pd
@@ -14,7 +8,6 @@ from logai.preprocess.partitioner import PartitionerConfig, Partitioner
 from logai.utils import constants
 
 TEST_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data')
-
 
 class TestPartitioner:
 
@@ -126,6 +119,3 @@ class TestPartitioner:
         assert isinstance(partitioned_loglines, pd.Series), "result should be pandas.Series"
         assert partitioned_loglines.size == 2001, "length of list should be 2001"
         return
-
-
-

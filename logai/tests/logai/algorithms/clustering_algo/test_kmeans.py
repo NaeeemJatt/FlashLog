@@ -1,17 +1,10 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import pandas as pd
 import pytest
 from sklearn.cluster import KMeans
 
 from logai.algorithms.clustering_algo.kmeans import KMeansAlgo, KMeansParams
 from tests.logai.test_utils.fixtures import empty_feature, log_features
-
 
 class TestKMeansAlgo:
     def setup(self):

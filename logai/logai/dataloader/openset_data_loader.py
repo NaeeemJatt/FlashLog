@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import json
 import os.path
 
@@ -12,7 +6,6 @@ from attr import dataclass
 
 from logai.config_interfaces import Config
 from logai.dataloader.data_loader import FileDataLoader, DataLoaderConfig
-
 
 def get_config(dataset_name, filepath) -> DataLoaderConfig:
     """
@@ -32,12 +25,10 @@ def get_config(dataset_name, filepath) -> DataLoaderConfig:
     config.filepath = filepath
     return config
 
-
 @dataclass
 class OpenSetDataLoaderConfig(Config):
     dataset_name: str = None
     filepath: str = None
-
 
 class OpenSetDataLoader(FileDataLoader):
     def __init__(self, config: OpenSetDataLoaderConfig):

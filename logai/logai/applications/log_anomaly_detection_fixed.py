@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "logai")))
@@ -23,13 +17,8 @@ from logai.preprocess.preprocessor import Preprocessor
 from logai.dataloader.data_model import LogRecordObject
 from logai.utils import constants
 
-
 class LogAnomalyDetectionFixed:
-    """
-    Fixed Log Anomaly Detection with deterministic, consistent classification.
-    Ensures identical logs are always classified the same way.
-    """
-
+    
     def __init__(self, config: WorkFlowConfig):
         self.config = config
         self._loglines = None
@@ -90,37 +79,29 @@ class LogAnomalyDetectionFixed:
         return self._counter_df
 
     def evaluation(self):
-        """
-        Evaluation method for anomaly detection results.
-        """
+        
         if self._loglines_with_anomalies is not None:
             return self._loglines_with_anomalies["is_anomaly"]
         return None
 
     def execute(self):
-        """
-        Execute deterministic anomaly detection with consistent classification.
-        """
+        
         logrecord = self._load_data()
         
-        # Preprocessor cleans the loglines
         preprocessed_logrecord = self._preprocess(logrecord)
 
-        # Parsing
         loglines = preprocessed_logrecord.body[constants.LOGLINE_NAME]
         parsed_loglines = self._parse(loglines)
 
-        # Feature extraction
         feature_extractor = FeatureExtractor(self.config.feature_extractor_config)
 
-        # Get Counter Set
         self._counter_df = feature_extractor.convert_to_counter_vector(
             timestamps=logrecord.timestamp[constants.LOG_TIMESTAMPS],
             attributes=self.attributes,
         )
 
         if self.config.anomaly_detection_config.algo_name in constants.COUNTER_AD_ALGO:
-            # Use the original counter-based approach for time-series algorithms
+
             self._counter_df["attribute"] = self._counter_df.drop(
                 [constants.LOG_COUNTS, constants.LOG_TIMESTAMPS, constants.EVENT_INDEX],
                 axis=1,
@@ -154,95 +135,84 @@ class LogAnomalyDetectionFixed:
             self._index_group = self._counter_df[[constants.EVENT_INDEX]]
 
         else:
-            # DETERMINISTIC APPROACH: Ensure identical logs are classified consistently
+
             print("🔧 Using deterministic anomaly detection approach...")
             print(f"🔍 DEBUG: Algorithm name: {self.config.anomaly_detection_config.algo_name}")
             
             try:
-                # Step 1: Create a deterministic mapping of log content to unique IDs
+
                 log_df = pd.DataFrame({
                     'logline': self.loglines,
                     'parsed_logline': parsed_loglines,
                     'original_index': range(len(self.loglines))
                 })
                 
-                # Create a deterministic hash of each log for consistent grouping
                 log_df['log_hash'] = log_df['logline'].apply(lambda x: hash(str(x)))
                 
                 print(f"🔍 DEBUG: Total logs: {len(log_df)}")
                 print(f"🔍 DEBUG: Unique log hashes: {log_df['log_hash'].nunique()}")
                 
-                # Step 2: Group by log hash to ensure identical logs are processed together
                 grouped_by_hash = log_df.groupby('log_hash')
                 
-                # Step 3: Create feature vectors for unique log types only
                 unique_logs = []
                 hash_to_indices = {}
                 
                 for log_hash, group in grouped_by_hash:
-                    # Use the first occurrence of each unique log as representative
+
                     representative_log = group.iloc[0]
                     unique_logs.append(representative_log['parsed_logline'])
                     hash_to_indices[log_hash] = group['original_index'].tolist()
                 
                 print(f"🔍 DEBUG: Processing {len(unique_logs)} unique log types")
                 
-                # Step 4: Vectorize unique logs only (reduces computation and ensures consistency)
                 vectorizor = LogVectorizer(self.config.log_vectorizer_config)
-                # Fit on all parsed loglines to ensure consistent vocabulary
+
                 vectorizor.fit(parsed_loglines)
-                # Transform only unique logs
+
                 unique_vectors = vectorizor.transform(pd.Series(unique_logs))
                 
-                # Step 5: Create feature DataFrame with deterministic index
                 feature_df = pd.DataFrame(
                     unique_vectors.tolist(), 
-                    index=range(len(unique_logs))  # Use integer indices for consistency
+                    index=range(len(unique_logs))
                 )
                 
                 print(f"🔍 DEBUG: Feature matrix shape: {feature_df.shape}")
                 
-                # Step 6: Apply anomaly detection to unique logs
                 anomaly_detector = AnomalyDetector(self.config.anomaly_detection_config)
                 anomaly_detector.fit(feature_df)
                 anomaly_scores = anomaly_detector.predict(feature_df)["anom_score"]
                 
                 print(f"🔍 DEBUG: Anomaly scores range: {anomaly_scores.min():.4f} to {anomaly_scores.max():.4f}")
                 
-                # Step 7: Create deterministic threshold based on score distribution
                 if self.config.anomaly_detection_config.algo_name == "one_class_svm":
-                    # For One-Class SVM, lower scores indicate anomalies
-                    threshold = anomaly_scores.quantile(0.05)  # 5th percentile
+
+                    threshold = anomaly_scores.quantile(0.05)
                     anomaly_mask = anomaly_scores < threshold
                 else:
-                    # For other algorithms, higher scores indicate anomalies
-                    threshold = anomaly_scores.quantile(0.95)  # 95th percentile
+
+                    threshold = anomaly_scores.quantile(0.95)
                     anomaly_mask = anomaly_scores > threshold
                 
                 print(f"🔍 DEBUG: Threshold: {threshold:.4f}")
                 print(f"🔍 DEBUG: Anomalous unique logs: {anomaly_mask.sum()}")
                 
-                # Step 8: Create consistent results mapping
                 log_hash_to_anomaly = {}
                 for i, (log_hash, indices) in enumerate(hash_to_indices.items()):
                     is_anomaly = anomaly_mask.iloc[i]
                     log_hash_to_anomaly[log_hash] = is_anomaly
                 
-                # Step 9: Apply consistent classification to all logs
                 final_results = []
                 for _, row in log_df.iterrows():
                     log_hash = row['log_hash']
                     is_anomaly = log_hash_to_anomaly[log_hash]
                     final_results.append(1.0 if is_anomaly else 0.0)
                 
-                # Step 10: Create final DataFrame with consistent results
                 df = pd.DataFrame({
                     'logline': self.loglines,
                     'is_anomaly': final_results,
                     '_id': range(len(self.loglines))
                 })
                 
-                # Step 11: Verify consistency
                 log_content_to_anomaly = {}
                 inconsistencies = 0
                 
@@ -267,10 +237,8 @@ class LogAnomalyDetectionFixed:
                 else:
                     print(f"⚠️  WARNING: Found {inconsistencies} inconsistencies!")
                 
-                # Store results
                 self._loglines_with_anomalies = df
                 
-                # Create dummy results for compatibility with existing code
                 self._ad_results = pd.DataFrame({'result': final_results})
                 self._index_group = pd.DataFrame({'event_index': [[i] for i in range(len(self.loglines))]})
                 
@@ -278,7 +246,7 @@ class LogAnomalyDetectionFixed:
                 print(f"❌ ERROR in deterministic approach: {e}")
                 import traceback
                 traceback.print_exc()
-                # Fall back to simple approach
+
                 print("🔧 Falling back to simple anomaly detection...")
                 df = pd.DataFrame({
                     'logline': self.loglines,

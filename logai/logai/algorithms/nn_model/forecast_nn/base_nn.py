@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 import time
 import torch
@@ -20,7 +14,6 @@ from logai.utils.file_utils import read_file
 from attr import dataclass
 from logai.algorithms.vectorization_algo.forecast_nn import ForecastNNVectorizedDataset
 from torch.utils.data import DataLoader
-
 
 @dataclass
 class ForecastBasedNNParams(Config):
@@ -52,9 +45,9 @@ class ForecastBasedNNParams(Config):
     model_name: str = None
     metadata_filepath: str = None
     output_dir: str = None
-    feature_type: str = ""  # sequential, semantics
-    label_type: str = ""  # anomaly, next_log
-    eval_type: str = "session"  # session, None
+    feature_type: str = ""
+    label_type: str = ""
+    eval_type: str = "session"
     topk: int = 10
     embedding_dim: int = 100
     hidden_size: int = 100
@@ -65,16 +58,8 @@ class ForecastBasedNNParams(Config):
     batch_size: int = 1024
     learning_rate: int = 1e-4
 
-
 class Embedder(nn.Module):
-    """Learnable embedder for embedding loglines.
-
-    :param vocab_size: vocabulary size.
-    :param embedding_dim: embedding dimension.
-    :param pretrain_matrix: torch.Tensor object containing the pretrained embedding of the vocabulary tokens.
-    :param freeze: Freeze embeddings to pretrained ones if set to True, otherwise makes the embeddings learnable.
-    """
-
+    
     def __init__(
         self,
         vocab_size: int,
@@ -95,14 +80,8 @@ class Embedder(nn.Module):
     def forward(self, x):
         return self.embedding_layer(x.long())
 
-
 class ForecastBasedNN(nn.Module):
-    """
-    Model for learning log representations through a forecasting based self-supervised task.
-
-    :param config: ForecastBasedNNParams config class for parameters of forecasting based neural log representation models.
-    """
-
+    
     def __init__(self, config: ForecastBasedNNParams):
 
         super(ForecastBasedNN, self).__init__()
@@ -152,7 +131,7 @@ class ForecastBasedNN(nn.Module):
 
     def __predict_anomaly(self, test_loader: DataLoader, dtype: str = "test"):
 
-        model = self.eval()  # set to evaluation mode
+        model = self.eval()
         with torch.no_grad():
             y_pred = []
             store_dict = defaultdict(list)
@@ -226,7 +205,7 @@ class ForecastBasedNN(nn.Module):
                 return eval_results
 
     def __predict_next_log(self, test_loader: DataLoader, dtype: str = "test"):
-        model = self.eval()  # set to evaluation mode
+        model = self.eval()
         with torch.no_grad():
             y_pred = []
             store_dict = defaultdict(list)
@@ -269,7 +248,7 @@ class ForecastBasedNN(nn.Module):
                     batch_input = self.__input2device(batch_input)
                     return_dict = model.forward(batch_input)
                     y_pred = return_dict["y_pred"]
-                    y_prob_topk, y_pred_topk = torch.topk(y_pred, self.topk)  # b x topk
+                    y_prob_topk, y_pred_topk = torch.topk(y_pred, self.topk)
                     store_dict[ForecastNNVectorizedDataset.session_idx].extend(
                         tensor2flatten_arr(
                             batch_input[ForecastNNVectorizedDataset.session_idx]
@@ -380,7 +359,7 @@ class ForecastBasedNN(nn.Module):
         return {k: v.to(self.device) for k, v in batch_input.items()}
 
     def save_model(self):
-        """Saving model to file as specified in config"""
+        
         logging.info("Saving model to {}".format(self.model_save_file))
         try:
             torch.save(
@@ -392,21 +371,12 @@ class ForecastBasedNN(nn.Module):
             torch.save(self.state_dict(), self.model_save_file)
 
     def load_model(self, model_save_file: str = ""):
-        """Loading model from file.
-
-        :param model_save_file: path to file where model would be saved.
-        """
+        
         logging.info("Loading model from {}".format(self.model_save_file))
         self.load_state_dict(torch.load(model_save_file, map_location=self.device))
 
     def fit(self, train_loader: DataLoader, dev_loader: DataLoader = None):
-        """
-        Fit method for training model
-
-        :param train_loader: dataloader (torch.utils.data.DataLoader) for the train dataset.
-        :param dev_loader: dataloader (torch.utils.data.DataLoader) for the train dataset. Defaults to None, for which no evaluation is run.
-        :return: dict containing the best loss on dev dataset.
-        """
+        
         self.to(self.device)
         logging.info(
             "Start training on {} batches with {}.".format(

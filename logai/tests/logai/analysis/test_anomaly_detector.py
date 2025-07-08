@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -16,7 +10,6 @@ from logai.analysis.anomaly_detector import AnomalyDetectionConfig, AnomalyDetec
 from logai.utils import constants
 
 from tests.logai.test_utils.fixtures import log_features, log_counter_df
-
 
 class TestAnomalyDetector:
     def setup(self):

@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -26,10 +20,8 @@ from logai.preprocess.preprocessor import Preprocessor
 from logai.utils import constants, evaluate
 from logai.utils.log_normalizer import LogNormalizer, NormalizationConfig, normalize_logs
 
-
 class LogAnomalyDetection:
-    """This is a workflow for log anomaly detection. 
-    """
+    
     def __init__(self, config: WorkFlowConfig):
         self.config = config
         self._timestamps = pd.DataFrame()
@@ -65,18 +57,15 @@ class LogAnomalyDetection:
     @property
     def results(self):
         try:
-            # Start with the main results DataFrame
+
             res = self._loglines_with_anomalies.copy()
             
-            # Safely join with attributes if available
             if self.attributes is not None and not self.attributes.empty:
                 res = res.join(self.attributes)
             
-            # Safely join with timestamps if available
             if self.timestamps is not None and not self.timestamps.empty:
                 res = res.join(self.timestamps)
             
-            # Safely join with event_group if available
             try:
                 event_group = self.event_group
                 if event_group is not None and not event_group.empty:
@@ -87,7 +76,7 @@ class LogAnomalyDetection:
             return res
         except Exception as e:
             print(f"❌ Error in results property: {e}")
-            # Return just the main results if joining fails
+
             return self._loglines_with_anomalies
 
     @property
@@ -107,14 +96,13 @@ class LogAnomalyDetection:
     def event_group(self):
         event_index_map = dict()
         
-        # Handle case where _index_group is empty or None
         if self._index_group is None or self._index_group.empty:
-            # Create a simple mapping where each log gets its own group
+
             loglines_length = len(self.loglines) if self.loglines is not None else 0
             for i in range(loglines_length):
                 event_index_map[i] = i
         else:
-            # Handle DataFrame format
+
             if "event_index" in self._index_group.columns:
                 for group_id, indices in self._index_group["event_index"].items():
                     if isinstance(indices, (list, tuple, set)):
@@ -123,14 +111,13 @@ class LogAnomalyDetection:
                     else:
                         event_index_map[indices] = group_id
             else:
-                # Fallback: create simple mapping
+
                 loglines_length = len(self.loglines) if self.loglines is not None else 0
                 for i in range(loglines_length):
                     event_index_map[i] = i
 
         event_index = pd.Series(event_index_map).rename("group_id")
         return event_index
-
 
     @property
     def feature_df(self):
@@ -149,31 +136,28 @@ class LogAnomalyDetection:
         return evaluate.get_accuracy_precision_recall(labels, pred)
 
     def execute(self):
-        # Set deterministic random seed for consistent results
+
         import numpy as np
         import random
         np.random.seed(42)
         random.seed(42)
         
         logrecord = self._load_data()
-        # Preprocessor cleans the loglines
+
         preprocessed_logrecord = self._preprocess(logrecord)
 
-        # Parsing
         loglines = preprocessed_logrecord.body[constants.LOGLINE_NAME]
         parsed_loglines = self._parse(loglines)
 
-        # Feature extraction
         feature_extractor = FeatureExtractor(self.config.feature_extractor_config)
 
-        # Get Counter Set
         self._counter_df = feature_extractor.convert_to_counter_vector(
             timestamps=logrecord.timestamp[constants.LOG_TIMESTAMPS],
             attributes=self.attributes,
         )
 
         if self.config.anomaly_detection_config.algo_name in constants.COUNTER_AD_ALGO:
-            # Use the original counter-based approach for time-series algorithms
+
             self._counter_df["attribute"] = self._counter_df.drop(
                 [constants.LOG_COUNTS, constants.LOG_TIMESTAMPS, constants.EVENT_INDEX],
                 axis=1,
@@ -193,7 +177,6 @@ class LogAnomalyDetection:
                         train_size=0.7,
                     )
 
-                    # Flatten the timestamp column if it contains lists
                     if train[constants.LOG_TIMESTAMPS].apply(lambda x: isinstance(x, list)).any():
                         print("[DEBUG] Exploding train DataFrame to flatten timestamp column...")
                         train = train.explode(constants.LOG_TIMESTAMPS)
@@ -218,18 +201,17 @@ class LogAnomalyDetection:
             self._index_group = self._counter_df[[constants.EVENT_INDEX]]
 
         else:
-            # DETERMINISTIC APPROACH: Ensure identical logs are classified consistently
+
             print("🔧 Using deterministic anomaly detection approach...")
             
             try:
-                # Step 1: Create a deterministic mapping of log content to unique IDs
+
                 log_df = pd.DataFrame({
                     'logline': self.loglines,
                     'parsed_logline': parsed_loglines,
                     'original_index': range(len(self.loglines))
                 })
                 
-                # Initialize comprehensive log normalizer
                 normalizer_config = NormalizationConfig(
                     normalize_ips=True,
                     normalize_ports=True,
@@ -243,63 +225,54 @@ class LogAnomalyDetection:
                 )
                 normalizer = LogNormalizer(normalizer_config)
                 
-                # Normalize all logs using the comprehensive normalizer
                 normalized_loglines = normalizer.normalize_batch(log_df['logline'].tolist())
                 log_df['normalized_logline'] = normalized_loglines
                 
-                # Create deterministic hash of normalized content for consistent grouping
                 log_df['log_hash'] = log_df['normalized_logline'].apply(lambda x: hash(str(x)))
                 
                 print(f"🔍 DEBUG: Total logs: {len(log_df)}")
                 print(f"🔍 DEBUG: Unique normalized log patterns: {log_df['normalized_logline'].nunique()}")
                 print(f"🔍 DEBUG: Unique log hashes: {log_df['log_hash'].nunique()}")
                 
-                # Show some examples of normalization
                 print(f"🔍 DEBUG: Normalization examples:")
                 for i, (original, normalized) in enumerate(zip(log_df['logline'].head(3), log_df['normalized_logline'].head(3))):
                     print(f"  Original {i+1}: {original[:80]}...")
                     print(f"  Normalized: {normalized[:80]}...")
                     print()
                 
-                # Step 2: Group by log hash to ensure identical logs are processed together
                 grouped_by_hash = log_df.groupby('log_hash')
                 
-                # Step 3: Create feature vectors for unique log types only
                 unique_logs = []
                 hash_to_indices = {}
                 
                 for log_hash, group in grouped_by_hash:
-                    # Use the first occurrence of each unique log as representative
+
                     representative_log = group.iloc[0]
                     unique_logs.append(representative_log['parsed_logline'])
                     hash_to_indices[log_hash] = group['original_index'].tolist()
                 
                 print(f"🔍 DEBUG: Processing {len(unique_logs)} unique log types")
                 
-                # Step 4: Vectorize unique logs only (reduces computation and ensures consistency)
                 vectorizor = LogVectorizer(self.config.log_vectorizer_config)
-                # Fit on all parsed loglines to ensure consistent vocabulary
+
                 vectorizor.fit(parsed_loglines)
-                # Transform only unique logs
+
                 unique_vectors = vectorizor.transform(pd.Series(unique_logs))
                 
-                # Step 5: Create feature DataFrame with deterministic index
                 feature_df = pd.DataFrame(
                     unique_vectors.tolist(), 
-                    index=range(len(unique_logs))  # Use integer indices for consistency
+                    index=range(len(unique_logs))
                 )
                 
                 print(f"🔍 DEBUG: Feature matrix shape: {feature_df.shape}")
                 
-                # Step 6: Apply anomaly detection to unique logs
                 anomaly_detector = AnomalyDetector(self.config.anomaly_detection_config)
                 
-                # For One-Class SVM, check and adjust parameters if needed
                 if self.config.anomaly_detection_config.algo_name == "one_class_svm":
-                    # Check if the nu parameter is too high (default is 0.5, which expects 50% outliers!)
+
                     try:
                         current_nu = self.config.anomaly_detection_config.algo_params.nu
-                        if current_nu > 0.1:  # If nu is too high, it will mark too many as anomalies
+                        if current_nu > 0.1:
                             print(f"⚠️  WARNING: One-Class SVM nu parameter is {current_nu} (expects {current_nu*100:.0f}% outliers)")
                             print("🔧 This is likely causing too many anomalies to be detected!")
                             print("🔧 Consider setting nu to 0.05-0.1 for typical log anomaly detection")
@@ -311,12 +284,10 @@ class LogAnomalyDetection:
                 
                 print(f"🔍 DEBUG: Anomaly scores range: {anomaly_scores.min():.4f} to {anomaly_scores.max():.4f}")
                 
-                # Step 7: Create deterministic threshold based on score distribution
                 if self.config.anomaly_detection_config.algo_name == "one_class_svm":
-                    # For One-Class SVM, score_samples returns higher scores for normal data, lower for anomalies
-                    # We want to mark the bottom 5% as anomalies (lower scores)
-                    threshold = anomaly_scores.quantile(0.05)  # 5th percentile
-                    anomaly_mask = anomaly_scores <= threshold  # <= to include the threshold value
+
+                    threshold = anomaly_scores.quantile(0.05)
+                    anomaly_mask = anomaly_scores <= threshold
                     print(f"🔍 DEBUG: One-Class SVM - Lower scores are anomalies")
                     print(f"🔍 DEBUG: Threshold (5th percentile): {threshold:.4f}")
                     print(f"🔍 DEBUG: Score range: {anomaly_scores.min():.4f} to {anomaly_scores.max():.4f}")
@@ -325,17 +296,16 @@ class LogAnomalyDetection:
                     print(f"🔍 DEBUG: Scores at 25th percentile: {anomaly_scores.quantile(0.25):.4f}")
                     print(f"🔍 DEBUG: Scores at 50th percentile: {anomaly_scores.quantile(0.50):.4f}")
                     
-                    # Check if all scores are the same (which would cause all to be marked as anomalies)
                     if anomaly_scores.nunique() == 1:
                         print("⚠️  WARNING: All anomaly scores are identical! This suggests a model issue.")
                         print("🔧 Using a more conservative threshold...")
-                        # Use a more conservative threshold - mark only the very bottom 1% as anomalies
+
                         threshold = anomaly_scores.quantile(0.01)
                         anomaly_mask = anomaly_scores <= threshold
                         print(f"🔧 Adjusted threshold (1st percentile): {threshold:.4f}")
                 else:
-                    # For other algorithms, higher scores indicate anomalies
-                    threshold = anomaly_scores.quantile(0.95)  # 95th percentile
+
+                    threshold = anomaly_scores.quantile(0.95)
                     anomaly_mask = anomaly_scores > threshold
                     print(f"🔍 DEBUG: Other algorithm - Higher scores are anomalies")
                     print(f"🔍 DEBUG: Threshold (95th percentile): {threshold:.4f}")
@@ -345,13 +315,11 @@ class LogAnomalyDetection:
                 print(f"🔍 DEBUG: Total unique logs: {len(anomaly_mask)}")
                 print(f"🔍 DEBUG: Anomaly percentage: {(anomaly_mask.sum() / len(anomaly_mask) * 100):.2f}%")
                 
-                # Additional debugging for One-Class SVM
                 if self.config.anomaly_detection_config.algo_name == "one_class_svm":
                     print(f"🔍 DEBUG: Number of scores <= threshold: {(anomaly_scores <= threshold).sum()}")
                     print(f"🔍 DEBUG: Number of scores < threshold: {(anomaly_scores < threshold).sum()}")
                     print(f"🔍 DEBUG: Number of scores == threshold: {(anomaly_scores == threshold).sum()}")
                     
-                    # If no anomalies detected, try a more aggressive threshold
                     if anomaly_mask.sum() == 0:
                         print("⚠️  WARNING: No anomalies detected with 5% threshold!")
                         print("🔧 Trying more aggressive threshold (10% percentile)...")
@@ -360,8 +328,7 @@ class LogAnomalyDetection:
                         print(f"🔧 New threshold (10th percentile): {threshold:.4f}")
                         print(f"🔧 Anomalous unique logs with new threshold: {anomaly_mask.sum()}")
                     
-                    # If too many anomalies detected, try a more conservative threshold
-                    elif anomaly_mask.sum() > len(anomaly_mask) * 0.5:  # More than 50% anomalies
+                    elif anomaly_mask.sum() > len(anomaly_mask) * 0.5:
                         print("⚠️  WARNING: Too many anomalies detected (>50%)!")
                         print("🔧 Trying more conservative threshold (1% percentile)...")
                         threshold = anomaly_scores.quantile(0.01)
@@ -369,8 +336,7 @@ class LogAnomalyDetection:
                         print(f"🔧 New threshold (1st percentile): {threshold:.4f}")
                         print(f"🔧 Anomalous unique logs with new threshold: {anomaly_mask.sum()}")
                         
-                        # If still too many, try even more conservative
-                        if anomaly_mask.sum() > len(anomaly_mask) * 0.2:  # Still more than 20% anomalies
+                        if anomaly_mask.sum() > len(anomaly_mask) * 0.2:
                             print("⚠️  WARNING: Still too many anomalies (>20%)!")
                             print("🔧 Using very conservative threshold (0.5% percentile)...")
                             threshold = anomaly_scores.quantile(0.005)
@@ -378,11 +344,10 @@ class LogAnomalyDetection:
                             print(f"🔧 Final threshold (0.5th percentile): {threshold:.4f}")
                             print(f"🔧 Anomalous unique logs with final threshold: {anomaly_mask.sum()}")
                         
-                        # Final sanity check - if we still have too many anomalies, use a fixed threshold
-                        if anomaly_mask.sum() > len(anomaly_mask) * 0.3:  # More than 30% anomalies
+                        if anomaly_mask.sum() > len(anomaly_mask) * 0.3:
                             print("⚠️  WARNING: Still detecting too many anomalies!")
                             print("🔧 Using fixed threshold based on score distribution...")
-                            # Use mean - 2*std as threshold (more conservative)
+
                             mean_score = anomaly_scores.mean()
                             std_score = anomaly_scores.std()
                             threshold = mean_score - 2 * std_score
@@ -390,27 +355,23 @@ class LogAnomalyDetection:
                             print(f"🔧 Fixed threshold (mean - 2*std): {threshold:.4f}")
                             print(f"🔧 Anomalous unique logs with fixed threshold: {anomaly_mask.sum()}")
                 
-                # Step 8: Create consistent results mapping
                 log_hash_to_anomaly = {}
                 for i, (log_hash, indices) in enumerate(hash_to_indices.items()):
                     is_anomaly = anomaly_mask.iloc[i]
                     log_hash_to_anomaly[log_hash] = is_anomaly
                 
-                # Step 9: Apply consistent classification to all logs
                 final_results = []
                 for _, row in log_df.iterrows():
                     log_hash = row['log_hash']
                     is_anomaly = log_hash_to_anomaly[log_hash]
                     final_results.append(1.0 if is_anomaly else 0.0)
                 
-                # Step 10: Create final DataFrame with consistent results
                 df = pd.DataFrame({
                     'logline': self.loglines,
                     'is_anomaly': final_results,
                     '_id': range(len(self.loglines))
                 })
                 
-                # Step 11: Verify consistency using normalized logs
                 normalized_content_to_anomaly = {}
                 inconsistencies = 0
                 
@@ -436,10 +397,8 @@ class LogAnomalyDetection:
                 else:
                     print(f"⚠️  WARNING: Found {inconsistencies} inconsistencies!")
                 
-                # Store results
                 self._loglines_with_anomalies = df
                 
-                # Create dummy results for compatibility with existing code
                 self._ad_results = pd.DataFrame({'result': final_results})
                 self._index_group = pd.DataFrame({'event_index': [[i] for i in range(len(self.loglines))]})
                 
@@ -447,7 +406,7 @@ class LogAnomalyDetection:
                 print(f"❌ ERROR in deterministic approach: {e}")
                 import traceback
                 traceback.print_exc()
-                # Fall back to simple approach
+
                 print("🔧 Falling back to simple anomaly detection...")
                 df = pd.DataFrame({
                     'logline': self.loglines,
@@ -479,11 +438,10 @@ class LogAnomalyDetection:
         self._loglines = logline
         self._timestamps = log_record.timestamp
         
-        # Handle attributes safely
         if log_record.attributes is not None and not log_record.attributes.empty:
             self._attributes = log_record.attributes.astype(str)
         else:
-            # Create empty attributes DataFrame if none provided
+
             self._attributes = pd.DataFrame()
 
         preprocessor = Preprocessor(self.config.preprocessor_config)
@@ -505,7 +463,7 @@ class LogAnomalyDetection:
             if constants.PARSED_LOGLINE_NAME not in parsed_results.columns:
                 print(f"⚠️  Warning: Parsed results missing '{constants.PARSED_LOGLINE_NAME}' column")
                 print(f"   Available columns: {list(parsed_results.columns)}")
-                # Fallback: use original loglines as parsed loglines
+
                 parsed_loglines = loglines
             else:
                 parsed_loglines = parsed_results[constants.PARSED_LOGLINE_NAME]

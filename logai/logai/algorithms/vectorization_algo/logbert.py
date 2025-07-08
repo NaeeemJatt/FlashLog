@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 import pandas as pd
 from attr import dataclass
@@ -26,24 +20,9 @@ from logai.dataloader.data_model import LogRecordObject
 from logai.utils import constants
 from logai.algorithms.factory import factory
 
-
 @dataclass
 class LogBERTVectorizerParams(Config):
-    """Config class for logBERT Vectorizer
-
-    :param model_name: name of the model , using HuggingFace standardized naming.
-    :param use_fast: whether to use fast tokenization or not.
-    :param truncation: whether to truncate the input to max_token_len.
-    :param max_token_len: maximum token length of input, if truncation is set to true.
-    :param max_vocab_size: maximum size  of the vocabulary.
-    :param custom_tokens: list of custom tokens.
-    :param train_batch_size: batch size during training the vectorizer.
-    :param output_dir: path to directory where the output would be saved.
-    :param tokenizer_dirpath: path to the tokenizer where the vectorizer (logbert tokenizer) would be saved.
-    :param num_proc: number of processes to be used when tokenizing.
-
-    """
-
+    
     model_name: str = ""
     use_fast: bool = True
     truncation: bool = True
@@ -55,15 +34,9 @@ class LogBERTVectorizerParams(Config):
     tokenizer_dirpath: str = None
     num_proc: int = 4
 
-
 @factory.register("vectorization", "logbert", LogBERTVectorizerParams)
 class LogBERT(VectorizationAlgo):
-    """Vectorizer class for logbert.
-
-    :param config: A config object for specifying
-        parameters of log bert vectorizer.
-    """
-
+    
     def __init__(self, config: LogBERTVectorizerParams):
     
         self.config = config
@@ -102,12 +75,7 @@ class LogBERT(VectorizationAlgo):
             )
 
     def fit(self, logrecord: LogRecordObject):
-        """Fit method for training vectorizer for logbert.
-
-        :param logrecord: A log record object containing the training
-            dataset over which vectorizer is trained.
-        """
-
+        
         if os.listdir(self.config.tokenizer_dirpath):
             return
 
@@ -164,12 +132,7 @@ class LogBERT(VectorizationAlgo):
         return logrecord
 
     def transform(self, logrecord: LogRecordObject):
-        """Transform method for running vectorizer over logrecord object.
-
-        :param logrecord: A log record object containing the dataset
-            to be vectorized.
-        :return: HuggingFace dataset object.
-        """
+        
         cleaned_logrecord = self._clean_dataset(logrecord)
         dataset = self._get_hf_dataset(cleaned_logrecord)
         tokenized_dataset = dataset.map(

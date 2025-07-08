@@ -1,14 +1,7 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import pandas as pd
 
 import logai.utils.tokenize
-
 
 def test__tokenize_camel_case():
     logline = pd.Series(["this is a camelCase logType"])

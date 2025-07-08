@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 from attr import dataclass
 
 from logai.analysis.anomaly_detector import AnomalyDetectionConfig
@@ -21,24 +15,9 @@ from logai.preprocess.partitioner import PartitionerConfig
 from logai.preprocess.openset_partitioner import OpenSetPartitionerConfig
 from logai.preprocess.preprocessor import PreprocessorConfig
 
-
 @dataclass
 class WorkFlowConfig(Config):
-    """config class for end to end workflow.
     
-    :param data_loader_config: A config object for data loader.
-    :param open_set_data_loader_config: A config object for data loader for opensource public log datasets.
-    :param preprocessor_config: A config object for log preprocessor.
-    :param log_parser_config: A config object for log parser.
-    :param log_vectorizer_config: A config object for log vectorizer.
-    :param partitioner_config: A config object for log partitioner.
-    :param open_set_partitioner_config: A config object for log partitioner for opensource public log datasets.
-    :param categorical_encoder_config: A config object for categorical encoder of log data.
-    :param feature_extractor_config: A config object for log feature extractor.
-    :param anomaly_detection_config: A config object for log anomaly detector.
-    :param nn_anomaly_detection_config: A config object for neural anomaly detector.
-    :param clustering_config: A config object for log clustering algorithm.
-    """
     data_loader_config: object = None
     open_set_data_loader_config: object = None
     preprocessor_config: object = None

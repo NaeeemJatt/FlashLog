@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import re
 import sys
 import pandas as pd
@@ -14,22 +8,14 @@ from dataclasses import dataclass
 from logai.algorithms.algo_interfaces import ParsingAlgo
 from logai.config_interfaces import Config
 
-"""
-** Need to refactor the implementaiton of IPLoM **
-This is wrapping the logpai/logparser implementation of AEL algorithm
-link: https://github.com/logpai/logparser/blob/master/logparser/IPLoM/IPLoM.py
-"""
-
 import copy
 import hashlib
 
 from logai.algorithms.factory import factory
 from logai.utils.log_normalizer import LogNormalizer, NormalizationConfig
 
-
 class Partition:
-    """Wrap around the logs and the step number"""
-
+    
     def __init__(self, stepNo, numOfLogs=0, lenOfLogs=0):
         self.logLL = []
         self.stepNo = stepNo
@@ -37,29 +23,16 @@ class Partition:
         self.numOfLogs = numOfLogs
         self.lenOfLogs = lenOfLogs
 
-
 class Event:
-    """Event class to wrap a Log Event 
-    """
+    
     def __init__(self, eventStr):
         self.eventStr = eventStr
         self.eventId = hashlib.md5(" ".join(eventStr).encode("utf-8")).hexdigest()[0:8]
         self.eventCount = 0
 
-
 @dataclass
 class IPLoMParams(Config):
-    """Parameters for the IPLoM Log Parser. For more details on parameters see 
-    https://github.com/logpai/logparser/tree/master/logparser/IPLoM.
-
-    :param rex: The rex string.
-    :param logformat: The log format.
-    :param maxEventLen: The max event length.
-    :param step2Support: The step to support.
-    :param lowerBound: The lower bound threshold.
-    :param upperBound: The upper bound threshold.
-    :param keep_para: Whether to keep parameters.
-    """
+    
     rex: str = None
     logformat: str = None
     maxEventLen: int = 200
@@ -70,12 +43,9 @@ class IPLoMParams(Config):
     upperBound: float = 0.9
     keep_para: bool = True
 
-
 @factory.register("parsing", "iplom", IPLoMParams)
 class IPLoM(ParsingAlgo):
-    """IPLoM Log Parsing algorithm. For details see 
-    https://github.com/logpai/logparser/tree/master/logparser/IPLoM.
-    """
+    
     def __init__(self, params: IPLoMParams):
         self.para = params
         self.partitionsL = []
@@ -83,23 +53,15 @@ class IPLoM(ParsingAlgo):
         self.output = []
         self.keep_para = params.keep_para
 
-        # Initialize some partitions which contain logs with different length
         for logLen in range(self.para.maxEventLen + 1):
             self.partitionsL.append(Partition(stepNo=1, numOfLogs=0, lenOfLogs=logLen))
 
     def fit(self, loglines: pd.Series):
-        """
-        IPLoM does not support model fit. Call parse() directly with given input and get log templates.
-        """
+        
         pass
 
     def parse(self, loglines: pd.Series) -> pd.Series:
-        """Parsing method to parse the raw log data.
-
-        :param loglines: The raw log data.
-        :returns: The parsed log data.
-        """
-        # Apply normalization before parsing for consistent template generation
+        
         normalizer_config = NormalizationConfig(
             normalize_ips=True,
             normalize_ports=True,
@@ -112,7 +74,6 @@ class IPLoM(ParsingAlgo):
         )
         normalizer = LogNormalizer(normalizer_config)
         
-        # Normalize logs before parsing
         normalized_loglines = normalizer.normalize_batch(loglines.tolist())
         loglines = pd.Series(normalized_loglines, index=loglines.index)
         
@@ -136,7 +97,7 @@ class IPLoM(ParsingAlgo):
         lineCount = 1
         for idx, line in self.df_log.iterrows():
             line = line[loglines.name]
-            # If line is empty, skip
+
             if line.strip() == "":
                 continue
 
@@ -148,11 +109,9 @@ class IPLoM(ParsingAlgo):
             if not wordSeq:
                 wordSeq = [" "]
 
-            # Generate terms list, with ID in the end
             wordSeq.append(str(lineCount))
             lineCount += 1
 
-            # Add current log to the corresponding partition
             self.partitionsL[len(wordSeq) - 1].logLL.append(wordSeq)
             self.partitionsL[len(wordSeq) - 1].numOfLogs += 1
 
@@ -179,12 +138,9 @@ class IPLoM(ParsingAlgo):
             if partition.numOfLogs <= self.para.step2Support:
                 continue
 
-            # Avoid going through newly generated partitions
             if partition.stepNo == 2:
                 break
 
-            # For each column, create a set to hold the unique tokens in that column.
-            # And finally, calculate the number of the unique tokens in each column
             uniqueTokensCountLS = []
             for columnIdx in range(partition.lenOfLogs):
                 uniqueTokensCountLS.append(set())
@@ -193,7 +149,6 @@ class IPLoM(ParsingAlgo):
                 for columnIdx in range(partition.lenOfLogs):
                     uniqueTokensCountLS[columnIdx].add(logL[columnIdx])
 
-            # Find the column with minimum unique tokens
             minColumnIdx = 0
             minColumnCount = len(uniqueTokensCountLS[0])
 
@@ -202,11 +157,9 @@ class IPLoM(ParsingAlgo):
                     minColumnCount = len(uniqueTokensCountLS[columnIdx])
                     minColumnIdx = columnIdx
 
-            # If there is one column with one unique term, do not split this partition
             if minColumnCount == 1:
                 continue
 
-            # From split-token to log list
             logDLL = {}
             for logL in partition.logLL:
                 if logL[minColumnIdx] not in logDLL:
@@ -241,7 +194,6 @@ class IPLoM(ParsingAlgo):
             if partition.stepNo == 3:
                 break
 
-            # Find two columns that my cause split in this step
             p1, p2 = self.DetermineP1P2(partition)
 
             if p1 == -1 or p2 == -1:
@@ -254,7 +206,6 @@ class IPLoM(ParsingAlgo):
                 mapRelation1DS = {}
                 mapRelation2DS = {}
 
-                # Construct token sets for p1 and p2, dictionary to record the mapping relations between p1 and p2
                 for logL in partition.logLL:
                     p1Set.add(logL[p1])
                     p2Set.add(logL[p2])
@@ -270,13 +221,10 @@ class IPLoM(ParsingAlgo):
                         mapRelation2DS[logL[p2]] = set()
                     mapRelation2DS[logL[p2]].add(logL[p1])
 
-                # Construct sets to record the tokens in 1-1, 1-M, M-1 relationships, the left-tokens in p1Set & p2Set
-                # are in M-M relationships
                 oneToOneS = set()
                 oneToMP1D = {}
                 oneToMP2D = {}
 
-                # select 1-1 and 1-M relationships
                 for p1Token in p1Set:
                     if len(mapRelation1DS[p1Token]) == 1:
                         if len(mapRelation2DS[list(mapRelation1DS[p1Token])[0]]) == 1:
@@ -292,7 +240,6 @@ class IPLoM(ParsingAlgo):
                         if isOneToM:
                             oneToMP1D[p1Token] = 0
 
-                # delete the tokens which are picked to 1-1 and 1-M relationships from p1Set, so that the left are M-M
                 for deleteToken in oneToOneS:
                     p1Set.remove(deleteToken)
                     p2Set.remove(list(mapRelation1DS[deleteToken])[0])
@@ -302,7 +249,6 @@ class IPLoM(ParsingAlgo):
                         p2Set.remove(deleteTokenP2)
                     p1Set.remove(deleteToken)
 
-                # select M-1 relationships
                 for p2Token in p2Set:
                     if len(mapRelation2DS[p2Token]) != 1:
                         isOneToM = True
@@ -313,13 +259,11 @@ class IPLoM(ParsingAlgo):
                         if isOneToM:
                             oneToMP2D[p2Token] = 0
 
-                # delete the tokens which are picked to M-1 relationships from p2Set, so that the left are M-M
                 for deleteToken in oneToMP2D:
                     p2Set.remove(deleteToken)
                     for deleteTokenP1 in mapRelation2DS[deleteToken]:
                         p1Set.remove(deleteTokenP1)
 
-                # calculate the #Lines_that_match_S
                 for logL in partition.logLL:
                     if logL[p1] in oneToMP1D:
                         oneToMP1D[logL[p1]] += 1
@@ -336,9 +280,9 @@ class IPLoM(ParsingAlgo):
                 newPartitionsD["dumpKeyforMMrelationInStep2__"] = Partition(
                     stepNo=3, numOfLogs=0, lenOfLogs=partition.lenOfLogs
                 )
-            # Split partition
+
             for logL in partition.logLL:
-                # If is 1-1
+
                 if logL[p1] in oneToOneS:
                     if logL[p1] not in newPartitionsD:
                         newPartitionsD[logL[p1]] = Partition(
@@ -347,8 +291,6 @@ class IPLoM(ParsingAlgo):
                     newPartitionsD[logL[p1]].logLL.append(logL)
                     newPartitionsD[logL[p1]].numOfLogs += 1
 
-                # This part can be improved. The split_rank can be calculated once.
-                # If is 1-M
                 elif logL[p1] in oneToMP1D:
                     split_rank = self.Get_Rank_Posistion(
                         len(mapRelation1DS[logL[p1]]), oneToMP1D[logL[p1]], True
@@ -368,7 +310,6 @@ class IPLoM(ParsingAlgo):
                         newPartitionsD[logL[p2]].logLL.append(logL)
                         newPartitionsD[logL[p2]].numOfLogs += 1
 
-                # If is M-1
                 elif logL[p2] in oneToMP2D:
                     split_rank = self.Get_Rank_Posistion(
                         len(mapRelation2DS[logL[p2]]), oneToMP2D[logL[p2]], False
@@ -388,7 +329,6 @@ class IPLoM(ParsingAlgo):
                         newPartitionsD[logL[p2]].logLL.append(logL)
                         newPartitionsD[logL[p2]].numOfLogs += 1
 
-                # M-M
                 else:
                     if partition.stepNo == 2:
                         newPartitionsD["dumpKeyforMMrelationInStep2__"].logLL.append(
@@ -416,7 +356,7 @@ class IPLoM(ParsingAlgo):
                 and newPartitionsD["dumpKeyforMMrelationInStep2__"].numOfLogs == 0
             ):
                 newPartitionsD["dumpKeyforMMrelationInStep2__"].valid = False
-            # Add all the new partitions to collection
+
             for key in newPartitionsD:
                 if (
                     self.para.PST != 0
@@ -481,15 +421,6 @@ class IPLoM(ParsingAlgo):
             for logL in partition.logLL:
                 self.output.append(logL[-2:] + logL[:-2])
 
-    """
-    For 1-M and M-1 mappings, you need to decide whether M side are constants or variables. 
-    This method is to decide which side to split
-
-    cardOfS           : The number of unique values in this set
-    Lines_that_match_S: The number of lines that have these values
-    one_m             : If the mapping is 1-M, this value is True. Otherwise, False
-    """
-
     def Get_Rank_Posistion(self, cardOfS, Lines_that_match_S, one_m):
         try:
             distance = 1.0 * cardOfS / Lines_that_match_S
@@ -533,12 +464,10 @@ class IPLoM(ParsingAlgo):
                 for columnIdx in range(partition.lenOfLogs):
                     uniqueTokensCountLS[columnIdx].add(logL[columnIdx])
 
-            # Count how many columns have only one unique term
             for columnIdx in range(partition.lenOfLogs):
                 if len(uniqueTokensCountLS[columnIdx]) == 1:
                     count_1 += 1
 
-            # If the columns with unique term more than a threshold, we return (-1, -1) to skip step 3
             GC = 1.0 * count_1 / partition.lenOfLogs
 
             if GC < self.para.CT:
@@ -554,7 +483,6 @@ class IPLoM(ParsingAlgo):
     def Get_Mapping_Position(self, partition, uniqueTokensCountLS):
         p1 = p2 = -1
 
-        # Caculate #unqiueterms in each column, and record how many column with each #uniqueterms
         numOfUniqueTokensD = {}
         for columnIdx in range(partition.lenOfLogs):
             if len(uniqueTokensCountLS[columnIdx]) not in numOfUniqueTokensD:
@@ -563,7 +491,6 @@ class IPLoM(ParsingAlgo):
 
         if partition.stepNo == 2:
 
-            # Find the largest card and second largest card
             maxIdx = secondMaxIdx = -1
             maxCount = secondMaxCount = 0
             for key in numOfUniqueTokensD:
@@ -581,7 +508,6 @@ class IPLoM(ParsingAlgo):
                     secondMaxIdx = key
                     secondMaxCount = numOfUniqueTokensD[key]
 
-            # If the frequency of the freq_card>1 then
             if maxCount > 1:
                 for columnIdx in range(partition.lenOfLogs):
                     if len(uniqueTokensCountLS[columnIdx]) == maxIdx:
@@ -591,14 +517,6 @@ class IPLoM(ParsingAlgo):
                             p2 = columnIdx
                             break
 
-            #                 for columnIdx in range(partition.lenOfLogs):
-            #                     if p2 != -1:
-            #                         break
-            #                     if numOfUniqueTokensD[len(uniqueTokensCountLS[columnIdx])] == secondMaxCount:
-            #                         p2 = columnIdx
-            #                         break
-
-            # If the frequency of the freq_card==1 then
             else:
                 for columnIdx in range(partition.lenOfLogs):
                     if len(uniqueTokensCountLS[columnIdx]) == maxIdx:
@@ -615,7 +533,6 @@ class IPLoM(ParsingAlgo):
             else:
                 return (p1, p2)
 
-        # If it is from step 1
         else:
             minIdx = secondMinIdx = -1
             minCount = secondMinCount = sys.maxsize

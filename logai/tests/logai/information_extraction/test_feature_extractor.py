@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 from datetime import timedelta
 
 import numpy as np
@@ -16,7 +10,6 @@ from logai.information_extraction.feature_extractor import FeatureExtractorConfi
 from logai.utils import constants
 
 from tests.logai.test_utils.fixtures import log_attributes, log_timestamps, log_vector_w2v, log_pattern
-
 
 class TestFeatureExtractor:
     def setup(self):
@@ -125,7 +118,6 @@ class TestFeatureExtractor:
 
         feature_extractor = FeatureExtractor(config)
         index, res = feature_extractor.convert_to_feature_vector(log_vector_w2v, log_attributes, log_timestamps)
-
 
         assert len(res.columns) == 13, "Feature size does not match"
 
@@ -247,13 +239,7 @@ class TestFeatureExtractor:
 
         print(res.head(3))
 
-
     def test_window(self, log_pattern):
-        # print(log_pattern.head(5))
+
         for window in log_pattern.rolling(window=5):
             print(" ".join(window))
-
-
-
-
-

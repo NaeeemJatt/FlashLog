@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 from logai.applications.openset.anomaly_detection.openset_anomaly_detection_workflow import (
     OpenSetADWorkflow,
     get_openset_ad_config,
@@ -21,7 +15,6 @@ TEST_LABEL_PATH = os.path.join(
 TEST_OUTPUT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "test_data/HDFS_AD/output"
 )
-
 
 class TestOpenSetLogAnomalyDetection:
     def _setup(self, config):

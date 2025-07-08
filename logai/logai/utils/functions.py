@@ -1,13 +1,3 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
-"""
-Module that includes common data manipulation functions to be applied by pandas dataframes.
-"""
 
 import numpy as np
 import pandas as pd
@@ -15,15 +5,8 @@ from merlion.utils import TimeSeries
 
 from logai.utils import constants
 
-
 def pad(x, max_len: np.array, padding_value: int = 0):
-    """Method to trim or pad any 1-d numpy array to a given max length with the given padding value
     
-    :param x: (np.array): given 1-d numpy array to be padded/trimmed
-    :param max_len: (int): maximum length of padded/trimmed output
-    :param padding_value: (int, optional): padding value. Defaults to 0.
-    :return: np.array: padded/trimmed numpy array
-    """
     flattened_vector = x
     fill_size = max_len - len(flattened_vector)
     if fill_size > 0:
@@ -31,7 +14,6 @@ def pad(x, max_len: np.array, padding_value: int = 0):
         return np.concatenate((flattened_vector, fill_zeros), axis=0)
     else:
         return flattened_vector[:max_len]
-
 
 def get_parameter_list(row):
     parameter_list = []
@@ -47,7 +29,7 @@ def get_parameter_list(row):
     j = 0
     consec_pattern = False
     while i < len(ll) and j < len(pp):
-        # print(ll[i], pp[j])
+
         if ll[i] == pp[j]:
             if buffer:
                 parameter_list.append(" ".join(buffer))
@@ -74,21 +56,13 @@ def get_parameter_list(row):
             parameter_list.append(" ".join(buffer))
     return parameter_list
 
-
 def pd_to_timeseries(log_features):
-    """
-    Convert pandas.DataFrame or pandas.Series to merlion.TimeSeries for log counter vectors.
-
-    :param log_features: log feature dataframe/series must only contain two columns
-      ['timestamp': datetime, constants.LOGLINE_COUNTS: int].
-    :return: merlion.TimeSeries type.
-    """
-    # Handle both DataFrame and Series inputs
+    
     if isinstance(log_features, pd.DataFrame):
         ts_df = log_features[constants.LOG_COUNTS]
         ts_df.index = log_features[constants.LOG_TIMESTAMPS]
     elif isinstance(log_features, pd.Series):
-        # If it's a Series, assume it's the counts with timestamp index
+
         ts_df = log_features
     else:
         raise ValueError(f"Expected DataFrame or Series, got {type(log_features)}")

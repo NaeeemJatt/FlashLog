@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 
 import pandas as pd
@@ -22,7 +16,6 @@ from logai.information_extraction.log_vectorizer import VectorizerConfig
 from logai.preprocess.preprocessor import PreprocessorConfig
 
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-
 
 class TestClustering:
     def setup(self):

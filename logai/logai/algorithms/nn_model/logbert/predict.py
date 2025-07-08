@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 from transformers import BertForMaskedLM, DataCollatorWithPadding
 from datasets import Dataset as HFDataset
 import numpy as np
@@ -23,13 +17,8 @@ from .tokenizer_utils import (
     get_mask_id,
 )
 
-
 class LogBERTPredict:
-    """Class for running inference on logBERT model for unsupervised log anomaly detection.
-
-    :param config: config object describing the parameters of logbert model.
-    """
-
+    
     def __init__(self, config: LogBERTConfig):
 
         self.config = config
@@ -43,7 +32,7 @@ class LogBERTPredict:
         self.special_tokens = get_special_tokens()
         self.special_token_ids = get_special_token_ids(
             self.tokenizer
-        )  # [self.tokenizer.convert_tokens_to_ids(x) for x in special_tokens]
+        )
         self.mask_id = get_mask_id(self.tokenizer)
 
         self.data_collator = DataCollatorWithPadding(
@@ -95,7 +84,7 @@ class LogBERTPredict:
         )
         labels[
             input_ids_masked != self.mask_id
-        ] = -100  # Need masked LM loss only for tokens with mask_id
+        ] = -100
         examples = {}
         examples["input_ids"] = input_ids_masked
         examples["attention_mask"] = attention_masks
@@ -107,7 +96,7 @@ class LogBERTPredict:
         return examples
 
     def load_model(self):
-        """Loading logbert model from the model dir path as specified in the logBERTConfig config"""
+        
         checkpoint_dir = "checkpoint-" + str(
             max(
                 [
@@ -122,7 +111,7 @@ class LogBERTPredict:
         )
         logging.info("Loading model from {}".format(model_checkpoint))
         self.model = BertForMaskedLM.from_pretrained(model_checkpoint)
-        self.model.tokenizer = self.tokenizer  # self.vectorizer.tokenizer
+        self.model.tokenizer = self.tokenizer
         self.predictor = Predictor(
             model=self.model,
             args=self.predictor_args,
@@ -135,11 +124,7 @@ class LogBERTPredict:
         )
 
     def predict(self, test_dataset: HFDataset):
-        """Method for running inference on logbert to predict anomalous loglines in test dataset.
-
-        :param test_dataset: test dataset of type huggingface Dataset object.
-        :return: dict containing instance-wise loss and scores.
-        """
+        
         if not self.model:
             self.load_model()
 

@@ -1,16 +1,9 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import pandas as pd
 
 from logai.algorithms.vectorization_algo.tfidf import TfIdfParams, TfIdf
 
 from tests.logai.test_utils.fixtures import logrecord_body
-
 
 class TestTfIdfParams:
     def test_create_default_params(self):
@@ -20,7 +13,6 @@ class TestTfIdfParams:
     def test_set_param_values(self):
         params = TfIdfParams(use_idf=False)
         assert not params.use_idf, "set to use_idf False"
-
 
 class TestTfIdf:
 

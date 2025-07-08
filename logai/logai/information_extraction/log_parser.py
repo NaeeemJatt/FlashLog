@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import logging
 import os
 import pickle
@@ -18,13 +12,9 @@ from logai.config_interfaces import Config
 from logai.utils import constants
 from logai.algorithms.factory import factory
 
-
 @dataclass
 class LogParserConfig(Config):
-    """
-    Log Parser configuration.
-    """
-
+    
     parsing_algorithm: str = "drain"
     parsing_algo_params: object = None
     custom_config: object = None
@@ -37,14 +27,8 @@ class LogParserConfig(Config):
         )
         return config
 
-
 class LogParser:
-    """
-    Implementation of log parser for free-form text loglines.
     
-    :param config: The log parser configuration.
-    """
-
     def __init__(self, config: object):
         name = config.parsing_algorithm.lower()
         config_class = factory.get_config_class("parsing", name)
@@ -54,10 +38,7 @@ class LogParser:
         )
 
     def fit(self, loglines: pd.Series):
-        """
-        Trains log parser with training loglines.
-        :param loglines: A pd.Series object containing the list of loglines for training.
-        """
+        
         self.parser.fit(loglines)
 
     def parse(self, loglines: pd.Series) -> pd.DataFrame:
@@ -93,11 +74,7 @@ class LogParser:
         return self.parse(loglines)
 
     def save(self, out_path):
-        """
-        Saves the parser model.
-        :param out_path: The directory to save parser models.
-        """
-
+        
         if not exists(dirname(out_path)):
             try:
                 os.makedirs(dirname(out_path))
@@ -112,23 +89,14 @@ class LogParser:
             f.close()
 
     def load(self, model_path):
-        """
-        Loads existing parser models.
-        :param model_path: The directory to load parser models.
-        """
-
+        
         with open(model_path, "rb") as f:
             self.parser = pickle.load(f)
             f.close()
 
     @staticmethod
     def get_parameter_list(row):
-        """
-        Returns parameter list of the loglines.
-
-        :param row: The row in dataframe as function input containing ['logline', 'parsed_logline'].
-        :return: The list of dynamic parameters.
-        """
+        
         parameter_list = []
         if not isinstance(row.logline, str) or not isinstance(row.parsed_logline, str):
             return parameter_list

@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import json
 import os
 
@@ -25,7 +19,6 @@ from logai.utils import constants
 TEST_LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data/HealthApp_2000.log')
 TEST_HDFS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data/HDFS/HDFS_2000.log')
 TEST_BGL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data/BGL_5000.log')
-
 
 class TestLogAnomalyDetection:
 
@@ -50,7 +43,7 @@ class TestLogAnomalyDetection:
             ),
             feature_extractor_config=FeatureExtractorConfig(
                 group_by_time="5min",
-                # group_by_category=["Action", "ID"]
+
             ),
             partitioner_config=PartitionerConfig(
                 group_by_time="5s",
@@ -116,19 +109,7 @@ class TestLogAnomalyDetection:
   }
 
 }
-"""
-        config = json.loads(json_config)
-        print(config)
-        workflow_config = WorkFlowConfig.from_dict(config)
-        print(workflow_config)
-        workflow_config.open_set_data_loader_config.filepath = TEST_HDFS_PATH
-        app = LogAnomalyDetection(workflow_config)
-        #
-        app.execute()
-        print(app.anomaly_results.head(5))
-
-    def test_hdfs_data(self):
-        json_config = """{
+{
       "open_set_data_loader_config": {
         "dataset_name": "HDFS"
       },
@@ -163,19 +144,7 @@ class TestLogAnomalyDetection:
       }
 
     }
-    """
-        config = json.loads(json_config)
-        print(config)
-        workflow_config = WorkFlowConfig.from_dict(config)
-        print(workflow_config)
-        workflow_config.open_set_data_loader_config.filepath = TEST_HDFS_PATH
-        app = LogAnomalyDetection(workflow_config)
-        #
-        app.execute()
-        print(app.anomaly_results.head(5))
-
-    def test_bgl_data(self):
-        json_config = """{
+    {
   "open_set_data_loader_config": {
     "dataset_name": "BGL"
   },
@@ -216,6 +185,6 @@ class TestLogAnomalyDetection:
         print(workflow_config)
         workflow_config.open_set_data_loader_config.filepath = TEST_BGL_PATH
         app = LogAnomalyDetection(workflow_config)
-        #
+
         app.execute()
         print(app.anomaly_results.head(5))

@@ -1,10 +1,3 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
 
 import pandas as pd
 from attr import dataclass
@@ -21,13 +14,9 @@ from logai.algorithms.categorical_encoding_algo.ordinal_encoding import (
 from logai.config_interfaces import Config
 from typing import Tuple
 
-
 @dataclass
 class CategoricalEncoderConfig(Config):
-    """
-    Categorical encoding configurations.
-    """
-
+    
     name: str = "label_encoder"
     params: object = None
 
@@ -40,19 +29,10 @@ class CategoricalEncoderConfig(Config):
             config.params = OrdinalEncodingParams.from_dict(config.params)
         return config
 
-
 class CategoricalEncoder:
-    """
-    Implementation of the categorical encoder.
-    """
-
+    
     def __init__(self, config: CategoricalEncoderConfig):
-        """
-        Initializes a categorical encoder.
-
-        :param config: Configuration of categorical encoders. Currently support label encoder,
-            ordinal encoder, and one-hot encoder.
-        """
+        
         self.encoder = None
         if config.name.lower() == "label_encoder":
             self.encoder = LabelEncoding()
@@ -72,10 +52,5 @@ class CategoricalEncoder:
             )
 
     def fit_transform(self, features: pd.Series) -> Tuple[pd.DataFrame, list]:
-        """
-        Transforms the str features into categories.
-
-        :param features: A list of features.
-        :return: A list of encoded features.
-        """
+        
         return self.encoder.fit_transform(features)

@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 import unittest
 import pandas as pd
@@ -20,7 +14,6 @@ from logai.dataloader.openset_data_loader import OpenSetDataLoader, OpenSetDataL
 pd.set_option('display.max_columns', None)
 
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-
 
 class TestLogPattern(unittest.TestCase):
 
@@ -72,19 +65,7 @@ log_parser_config:
   parsing_algo_params:
     sim_th: 0.1
     extra_delimiters: []
-'''
-        processor = LogPattern()
-        workflow_config = processor.yaml_to_config(yaml_config)
-        workflow_config.open_set_data_loader_config.filepath = os.path.join(DIR, "HealthApp_2000.log")
-        processor.execute_auto_parsing(workflow_config)
-        patterns = processor.get_log_parsing_patterns()
 
-        print(workflow_config)
-
-        pass
-
-    def test_json_to_config(self):
-        json_config = '''
 {
     "open_set_data_loader_config": {
         "dataset_name": "HealthApp"
@@ -110,7 +91,6 @@ log_parser_config:
         print(workflow_config)
 
         pass
-
 
 if __name__ == "__main__":
     unittest.main()

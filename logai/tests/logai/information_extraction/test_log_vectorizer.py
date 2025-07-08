@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 
 import pandas as pd
@@ -41,7 +35,6 @@ from datasets import Dataset as HFDataset
 TEST_OUTPUT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "test_data/temp"
 )
-
 
 class TestLogVectorizer:
     def test_tfidf_creation(self, logrecord_body):

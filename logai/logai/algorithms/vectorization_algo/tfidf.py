@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import numpy as np
 import pandas as pd
 from attr import dataclass
@@ -13,7 +7,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from logai.algorithms.algo_interfaces import VectorizationAlgo
 from logai.config_interfaces import Config
 from logai.algorithms.factory import factory
-
 
 @dataclass
 class TfIdfParams(Config):
@@ -84,21 +77,11 @@ class TfIdfParams(Config):
     smooth_idf: bool = True
     sublinear_tf: bool = False
 
-
 @factory.register("vectorization", "tfidf", TfIdfParams)
 class TfIdf(VectorizationAlgo):
-    """
-    TfIdf based vectorizer for log data. This is a wrapper class of the TF-IDF Vectorizer algorithm from scikit-learn.
-    https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html.
-    """
-
+    
     def __init__(self, params: TfIdfParams, **kwargs):
-        """
-        Initializes TF-IDF vectorizer.
-
-        :param params: TF-IDF algorithm parameters.
-        :param kwargs: Optional k-v based params.
-        """
+        
         self.model = TfidfVectorizer(
             input=params.input,
             encoding=params.encoding,
@@ -124,29 +107,18 @@ class TfIdf(VectorizationAlgo):
         )
 
     def fit(self, loglines: pd.Series):
-        """
-        Trains a TF-IDF model.
-
-        :param loglines: The input training dataset.
-        """
+        
         self.model.fit(loglines)
         self.vocab = self.model.vocabulary_
         self.vocab_size = len(self.vocab)
 
     def transform(self, loglines: pd.Series) -> pd.Series:
-        """
-        Transforms loglines into log vectors.
-
-        :param loglines: The input test dataset.
-        :return: The transformed log vectors.
-        """
+        
         res = self.model.transform(loglines)
         return pd.Series(res.todense().tolist(), index=loglines.index).apply(
             lambda x: np.array(x)
         )
 
     def summary(self):
-        """
-        Generates model summary.
-        """
+        
         return self.model.summary()

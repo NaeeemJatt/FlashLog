@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 
 from logai.dataloader.openset_data_loader import OpenSetDataLoader, OpenSetDataLoaderConfig
@@ -59,4 +53,3 @@ class TestOpenSetDataLoader:
         print(log_object.body.head(5))
         print(log_object.attributes.head(5))
         print(log_object.timestamp.head(5))
-

@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import pandas as pd
 
 from logai.algorithms.clustering_algo.dbscan import DBSCAN
@@ -21,13 +15,8 @@ from logai.preprocess.preprocessor import Preprocessor
 from logai.utils import constants
 from logai.utils.functions import pad
 
-
 class LogClustering:
-    """
-    Clustering Application class defines log clustering workflow.
-    It includes which algorithm to use.
-    """
-
+    
     def __init__(self, config):
         self.config = config
         self._loglines = pd.DataFrame()
@@ -67,10 +56,8 @@ class LogClustering:
 
     def execute(self):
 
-        # Load data
         logrecord = self._load_data()
 
-        # Preprocessor cleans the loglines
         logline = logrecord.body[constants.LOGLINE_NAME]
 
         self._loglines = logline
@@ -79,20 +66,16 @@ class LogClustering:
         preprocessor = Preprocessor(self.config.preprocessor_config)
         preprocessed_loglines, _ = preprocessor.clean_log(logline)
 
-        # Parsing
         parser = LogParser(self.config.log_parser_config)
         parsed_results = parser.parse(preprocessed_loglines.dropna())
 
         parsed_loglines = parsed_results[constants.PARSED_LOGLINE_NAME]
 
-        # Vectorization
         vectorizor = LogVectorizer(self.config.log_vectorizer_config)
         vectorizor.fit(parsed_loglines)
 
-        # Log vector is a pandas.Series
         log_vectors = vectorizor.transform(parsed_loglines)
 
-        # Categorical Encoding
         encoder = CategoricalEncoder(self.config.categorical_encoder_config)
 
         self._attributes = logrecord.attributes.astype(str)

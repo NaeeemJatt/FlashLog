@@ -1,9 +1,4 @@
-#
-# Copyright (c) 2022 salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
+
 import sys
 import importlib.util
 from packaging import version
@@ -15,11 +10,8 @@ else:
 
 get_pkg_version = importlib_metadata.version
 
-
 def is_torch_available():
-    """
-    Checks if pytorch is available.
-    """
+    
     if importlib.util.find_spec("torch") is not None:
         _torch_version = importlib_metadata.version("torch")
         if version.parse(_torch_version) < version.parse("1.6"):
@@ -28,11 +20,8 @@ def is_torch_available():
     else:
         return False
 
-
 def is_tf_available():
-    """
-    Checks if tensorflow 2.0 is available.
-    """
+    
     candidates = (
         "tensorflow",
         "tensorflow-cpu",
@@ -59,11 +48,8 @@ def is_tf_available():
     else:
         return False
 
-
 def is_transformers_available():
-    """
-    Checks if the `transformers` library is installed.
-    """
+    
     if importlib.util.find_spec("transformers") is not None:
         _version = importlib_metadata.version("transformers")
         if version.parse(_version) < version.parse("4.0"):
@@ -72,11 +58,8 @@ def is_transformers_available():
     else:
         return False
 
-
 def is_nltk_available():
-    """
-        Checks if the `nltk` library is installed.
-        """
+    
     if importlib.util.find_spec("nltk") is not None:
         return True
     else:

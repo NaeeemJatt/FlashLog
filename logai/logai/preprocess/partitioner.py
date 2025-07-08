@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import pandas as pd
 
 from attr import dataclass
@@ -12,28 +6,15 @@ from attr import dataclass
 from logai.config_interfaces import Config
 from logai.utils import constants
 
-
 @dataclass
 class PartitionerConfig(Config):
-    """Config class for Partitioner. 
-
-    :param group_by_category: The list of fields to group log data by .
-    :param group_by_time: The string-type argument to specify grouping by time, supported types
-        https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases.
-    :param sliding_window: The sliding window length if partitioning loglines into sliding windows.
-    :param sep_token: The separator token string to be used as delimiter, when grouping log data .
-    :param exclude_last_window: A boolean (default false) whether to exclude the last window
-        when doing sliding window based grouping of log data.
-    :param exclude_smaller_windows: A boolean (default false) whether to exclude windows of
-        length smaller than the given `sliding_window` argument.
-    """
+    
     group_by_category: list = None
     group_by_time: str = None
     sliding_window: int = 0
     sep_token: str = "[SEP]"
     exclude_last_window: bool = False
     exclude_smaller_windows: bool = False
-
 
 def concat_logs(windows, tokens):
     partitioned_loglines = []
@@ -42,29 +23,18 @@ def concat_logs(windows, tokens):
 
     return partitioned_loglines
 
-
 class Partitioner:
     def __init__(self, config: PartitionerConfig):
         self.config = config
         return
 
     def sliding_window(self, loglines: pd.Series) -> pd.Series:
-        """
-        Conducts sliding window log partitioning.
         
-        :param loglines: The series of loglines.
-        :return: The series of logline sequence after sliding window.
-        """
         partitioned_loglines = self._sliding_window(loglines)
         return pd.Series(partitioned_loglines, name=loglines.name)
 
     def group_counter(self, logrecord_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Groups log records by given categories and return counter vectors.
         
-        :param logrecord_df: The log record dataframe.
-        :return: The log counter vector dataframe after grouping.
-        """
         if not self._valid_columns(logrecord_df.columns.values):
             raise ValueError("Make sure logrecord has the columns to group by.")
 
@@ -103,13 +73,7 @@ class Partitioner:
     def group_sliding_window(
         self, logrecord_df: pd.DataFrame, logline_col_name=constants.LOGLINE_NAME
     ) -> pd.DataFrame:
-        """
-        Groups log records by sliding window based on the sliding window length, and returns
-        the resulting pandas dataFrame object.
         
-        :param logrecord_df: A pandas dataFrame on which grouping is to be applied.
-        :return: A pandas dataFrame after sliding window based grouping.
-        """
         if not self._valid_columns(logrecord_df.columns):
             raise ValueError("Make sure logrecord has the columns to group by.")
 
@@ -151,7 +115,7 @@ class Partitioner:
             grouper = group_by_category
 
         if grouper:
-            # if grouping
+
             for group_values, data in logrecord_df.groupby(grouper):
                 loglines = data[logline_col_name]
                 if sliding_window >= 0:
@@ -164,7 +128,7 @@ class Partitioner:
             res_df = pd.DataFrame(res_attributes, columns=partition_cols)
             res_df[logline_col_name] = res_sequences
         else:
-            # if not grouping, run sliding window directly
+
             if sliding_window >= 0:
                 res_sequences = self.sliding_window(logrecord_df[logline_col_name])
                 res_df = pd.DataFrame(res_sequences)

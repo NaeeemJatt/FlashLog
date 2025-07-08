@@ -1,17 +1,10 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import pandas as pd
 import pytest
 from pytest import approx
 
 from logai.algorithms.parsing_algo.drain import DrainParams, Drain
 from tests.logai.test_utils.fixtures import logrecord_body
-
 
 class TestDrainConfig:
     def setup(self):
@@ -39,7 +32,6 @@ class TestDrainConfig:
         assert config.sim_th == approx(0.2), "sim_th is not 0.2"
         assert type(config.extra_delimiters) is tuple, "extra_delimiters is not tuple"
         assert "," in config.extra_delimiters, "extra_delimiters doesn't contain comma"
-
 
 class TestDrain:
     def setup(self):

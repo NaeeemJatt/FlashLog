@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import logging
 import re
 
@@ -15,43 +9,25 @@ from logai.config_interfaces import Config
 from logai.dataloader.data_model import LogRecordObject
 from logai.utils import constants
 
-
 @dataclass
 class DataLoaderConfig(Config):
-    """
-    The configuration class of data loader.
-    """
-
+    
     filepath: str = ""
     log_type: str = "csv"
     dimensions: dict = dict()
     reader_args: dict = dict()
     infer_datetime: bool = False
-    datetime_format: str = "%Y-%M-%dT%H:%M:%SZ"  # Default the ISO 8601 format example 2022-05-26T21:29:09+00:00
+    datetime_format: str = "%Y-%M-%dT%H:%M:%SZ"
     open_dataset: str = None
 
-
 class FileDataLoader:
-    """
-    Implementation of file data loader, reading log record objects from local files.
-    """
-
+    
     def __init__(self, config: DataLoaderConfig):
-        """
-        Initializes FileDataLoader by consuming the configuration.
-        """
+        
         self.config = config
 
     def load_data(self) -> LogRecordObject:
-        """
-        Loads log data with given configuration.
-        Currently support file formats:
-        - csv
-        - tsv
-        - other plain text format such as .log with proper parsing configurations
-
-        :return: The logs read from log files and converted into LogRecordObject.
-        """
+        
         kwargs = self.config.reader_args
         fpath = self.config.filepath
         if self.config.log_type == "csv":
@@ -75,9 +51,7 @@ class FileDataLoader:
         return df
 
     def _log_to_dataframe(self, fpath, log_format):
-        """
-        Function to transform log file to dataframe.
-        """
+        
         headers = []
         splitters = re.split(r"(<[^<>]+>)", log_format)
         regex = ""
@@ -110,9 +84,7 @@ class FileDataLoader:
     def _create_log_record_object(self, df: pd.DataFrame):
         dims = self.config.dimensions
         log_record = LogRecordObject()
-        # Read all available log fields from config.
 
-        # Always use 'timestamp' column if it exists, even if not in dims
         if 'timestamp' in df.columns:
             ts_df = pd.DataFrame(df['timestamp'])
             ts_df.columns = [constants.LOG_TIMESTAMPS]
@@ -159,24 +131,21 @@ class FileDataLoader:
                             )
                         selected.columns = [constants.LOG_TIMESTAMPS]
                         if self.config.infer_datetime:
-                            # Always convert to datetime, let pandas auto-detect format
+
                             selected[constants.LOG_TIMESTAMPS] = pd.to_datetime(
                                 selected[constants.LOG_TIMESTAMPS],
                                 errors='coerce'
                             )
-                            # Fill any failed conversions with current time
+
                             if selected[constants.LOG_TIMESTAMPS].isna().any():
                                 selected[constants.LOG_TIMESTAMPS] = selected[constants.LOG_TIMESTAMPS].fillna(pd.Timestamp.now())
 
                     setattr(log_record, field, selected)
-        # log_record.__post_init__()
+
         return log_record
 
-
 class DefaultDataLoader:
-    # TODO: Placeholder to implement connector based data loader.
+
     def __init__(self):
-        """
-        Initializes default data loader.
-        """
+        
         self._logger = logging.Logger()

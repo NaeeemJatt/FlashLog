@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import os
 import pandas as pd
 
@@ -14,12 +8,8 @@ from logai.utils import constants
 
 TEST_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data')
 
-
 class TestFileDataLoader:
-    """
-    Tests for data loader
-    """
-
+    
     def test_read_csv(self):
         test_fpath = os.path.join(TEST_DATA_PATH, "HealthApp_format_2000.csv")
         file_config = DataLoaderConfig(
@@ -170,8 +160,6 @@ class TestFileDataLoader:
         assert logrecord.span_id.columns[0] == 'span_id', "Span_id name is not correct."
         assert len(logrecord.timestamp.columns) == 1, "Timestamp should contain 2 columns"
         print(logrecord.timestamp.head(5))
-
-    # Script to create test files.
 
     def _is_valid(self, file_config):
         dataloader = FileDataLoader(file_config)

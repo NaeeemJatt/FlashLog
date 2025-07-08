@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "logai")))
@@ -18,18 +12,9 @@ from logai.utils import constants
 from logai.utils.functions import pad
 from typing import Union
 
-
 @dataclass
 class FeatureExtractorConfig(Config):
-    """Config class for Feature Extractor.
     
-    :param group_by_category: Which fields of the dataframe object to group by.
-    :param group_by_time: Grouping log lines by the time frequency, using the notations in
-        https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases.
-    :param sliding_window: The length of the sliding window .
-    :param steps: The step-size of sliding window.
-    :param max_feature_len: The pad the log vector to this size.
-    """
     group_by_category: list = None
     group_by_time: str = None
     sliding_window: int = 0
@@ -37,23 +22,17 @@ class FeatureExtractorConfig(Config):
     max_feature_len: int = 100
 
     def __post_init__(self):
-        # Loop through the fields
+
         for field in fields(self):
-            # If there is a default and the value of the field is none we can assign a value
+
             if (
                 not isinstance(field.default, _MISSING_TYPE)
                 and getattr(self, field.name) is None
             ):
                 setattr(self, field.name, field.default)
 
-
 def _get_group_counter(attributes: pd.DataFrame, group_by_category: list) -> pd.Series:
-    """
-    Merge counting with other feature extraction functions.
     
-    :param attributes: pd.Dataframe or pd.Series for counting.
-    :param group_by_category: selected attributes for grouping and counting.
-    """
     attributes["group_index"] = attributes.index
     group_counter_list = (
         attributes.groupby(by=group_by_category)
@@ -63,28 +42,8 @@ def _get_group_counter(attributes: pd.DataFrame, group_by_category: list) -> pd.
     )
     return group_counter_list
 
-
 class FeatureExtractor:
-    """
-    Feature Extractor combines the structured log attributes and log vectors. Feature extractor can group
-    log records to log events based on user defined strategies. Such as group by a categorical column, or group by
-    timestamps.
-    Generate feature sets:
-    1. log features: generate feature set from log vectors.
-    2. log event sequence: concatenating all loglines belongs to the same log event.
-    3. log event counter vector: for each log event.
-    4. log vector
-    Note:
-        1. counter vector
-        2. sematic vector
-        3. id sequence vector.
-
-        partitioning:
-        1. group by attributes
-        2. group by length of sequence, either sliding windows or fix window.
-        3. timestamp interval based.
-    """
-
+    
     def __init__(self, config: FeatureExtractorConfig):
         self.config = config
 
@@ -94,16 +53,7 @@ class FeatureExtractor:
         attributes: pd.DataFrame = None,
         timestamps: pd.Series = None,
     ) -> pd.DataFrame:
-        """
-        Converts logs to log counter vector, after grouping log data based on the FeatureExtractor config.
         
-        :param log_pattern: The unstructured part of the log data.
-        :param attributes: The log attributes.
-        :param timestamps: The timestamps.
-
-        :return: The dataframe object containing the counts of the log-events after grouping.
-        """
-        # TODO: Implement sliding window for counter vectors
         input_df = self._get_input_df(log_pattern, attributes, timestamps)
 
         gb = self._get_group(input_df)
@@ -112,8 +62,6 @@ class FeatureExtractor:
         event_index_list[constants.LOG_COUNTS] = event_index_list["event_index"].apply(
             lambda x: len(x) if hasattr(x, '__len__') else 1
         )
-
-
 
         return event_index_list
 
@@ -145,23 +93,17 @@ class FeatureExtractor:
 
         gb = self._get_group(input_df)
 
-        # TODO: currently using mean() to aggregate log features. This may be expanded to take any stats.
-        # TODO: implement sliding window for feature vectors.
-        # Remove non-numeric columns before applying mean
         numeric_cols = input_df.select_dtypes(include=[np.number]).columns
-        # Remove non-numeric columns before applying mean
+
         numeric_cols = input_df.select_dtypes(include=[np.number]).columns
 
         block_list = gb[numeric_cols].mean()
 
-        # Drop index if it overlaps with any existing column (especially "event_index")
         for col in block_list.index.names:
             if col in block_list.columns:
                 block_list = block_list.drop(columns=col)
 
         block_list = block_list.reset_index()
-
-
 
         event_index_list = gb.agg(list).reset_index()
 
@@ -186,9 +128,7 @@ class FeatureExtractor:
             ``event_sequence``: pd.Series object containing the concatenating form of the unstructured input data
             (i.e. log_pattern argument), after concatenating the unstructured data for each sliding window.
         """
-        # TODO: Converting sequence by sliding windows.
-        # Partioning: length of sequence, step
-        # Attributes: session id.
+
         input_df = self._get_input_df(log_pattern, attributes, timestamps)
 
         gb = self._get_group(input_df)
@@ -218,7 +158,7 @@ class FeatureExtractor:
                     log_seq = np.lib.stride_tricks.sliding_window_view(
                         loglines, window
                     )[::step, :].tolist()
-                    # when timestamps not a groupby factor, we need to partition timestamps.
+
                     if (not timestamps.empty) and (not self.config.group_by_time):
                         ts = row[constants.LOG_TIMESTAMPS]
                         event_ts = np.lib.stride_tricks.sliding_window_view(ts, window)[
@@ -261,7 +201,6 @@ class FeatureExtractor:
 
     def _get_group_index(self, gb) -> pd.Series:
         event_index_list = gb.agg(list).reset_index()
-        # print(event_index_list.columns)
 
         return event_index_list
 
@@ -270,18 +209,13 @@ class FeatureExtractor:
         size_list = event_index_list["event_index_list"].apply(lambda x: len(x))
         return size_list
 
-    
     def _get_deterministic_group(self, input_df):
-        """
-        Create deterministic grouping based on log content hash.
-        This ensures identical logs are always grouped together.
-        """
-        # Create a hash of the log content for deterministic grouping
+        
         if 'logline' in input_df.columns:
             input_df['content_hash'] = input_df['logline'].apply(lambda x: hash(str(x)))
             return input_df.groupby('content_hash')
         else:
-            # Fall back to original grouping if no logline column
+
             return self._get_group(input_df)
 
     def _get_group(self, input_df):

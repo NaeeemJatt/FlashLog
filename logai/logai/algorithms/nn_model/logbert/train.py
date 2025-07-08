@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 from transformers import AutoModelForMaskedLM
 from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer, TrainingArguments
@@ -16,10 +10,8 @@ from .configs import LogBERTConfig
 from .tokenizer_utils import get_tokenizer, get_tokenizer_vocab
 import logging
 
-
 class LogBERTTrain:
-    """Class for training logBERT model to learn log representations"""
-
+    
     def __init__(self, config: LogBERTConfig):
 
         self.config = config
@@ -40,7 +32,7 @@ class LogBERTTrain:
         self.custom_vocab = get_tokenizer_vocab(self.config.tokenizer_dirpath)
 
     def _initialize_trainer(self, model, train_dataset, dev_dataset):
-        """initializing huggingface trainer object for logbert"""
+        
         training_args = TrainingArguments(
             self.model_dirpath,
             evaluation_strategy=self.config.evaluation_strategy,
@@ -70,10 +62,7 @@ class LogBERTTrain:
         )
 
     def get_model_checkpoint(self):
-        """Get the latest dumped checkpoint from the model directory path mentioned in logBERTConfig.
-
-        :return: path to model checkpoint (or name of model in case of a pretrained model from hugging face).
-        """
+        
         if os.path.exists(self.model_dirpath) and os.listdir(self.model_dirpath):
             checkpoint_dir = "checkpoint-" + str(
                 max(
@@ -92,11 +81,7 @@ class LogBERTTrain:
         return model_checkpoint
 
     def fit(self, train_dataset: HFDataset, dev_dataset: HFDataset):
-        """Fit method for training logbert model.
-
-        :param train_dataset: training dataset of type huggingface Dataset object.
-        :param dev_dataset: development dataset of type huggingface Dataset object.
-        """
+        
         model_checkpoint = self.get_model_checkpoint()
 
         if self.pretrain_from_scratch is False:
@@ -112,6 +97,6 @@ class LogBERTTrain:
         self.trainer.train()
 
     def evaluate(self):
-        """Evaluate methof for evaluating logbert model on dev data using perplexity metric."""
+        
         eval_results = self.trainer.evaluate()
         logging.info("Perplexity: {}".format(math.exp(eval_results["eval_loss"])))

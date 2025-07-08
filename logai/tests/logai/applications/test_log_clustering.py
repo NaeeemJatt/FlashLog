@@ -1,10 +1,4 @@
-#
-# Copyright (c) 2023 Salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-#
-#
+
 import json
 import os
 
@@ -21,7 +15,6 @@ from logai.preprocess.preprocessor import PreprocessorConfig
 TEST_LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data/HealthApp_2000.log')
 TEST_HDFS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data/HDFS/HDFS_5000.log')
 TEST_BGL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data/BGL_5000.log')
-
 
 class TestLogClustering:
     def setup(self):
@@ -105,17 +98,7 @@ class TestLogClustering:
       }
   }
 }
-"""
-        config = json.loads(json_config)
-        print(config)
-        workflow_config = WorkFlowConfig.from_dict(config)
-        print(workflow_config)
-        workflow_config.open_set_data_loader_config.filepath = TEST_HDFS_PATH
-        app = LogClustering(workflow_config)
-        app.execute()
-
-    def test_bgl_data(self):
-        json_config = """{
+{
   "open_set_data_loader_config": {
     "dataset_name": "BGL"
   },

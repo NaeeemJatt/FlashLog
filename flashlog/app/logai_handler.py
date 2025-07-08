@@ -40,24 +40,31 @@ def preprocess_log(filepath):
                 if not first_line:
                     return False
                 
-                # Check if it has consistent comma separators
+                # Check if it has comma separators (basic check)
                 comma_count = first_line.count(',')
                 if comma_count == 0:
                     return False
                 
-                # Read a few more lines to check consistency
+                # For files with Date and Time columns, treat as CSV regardless of comma consistency
+                # since quoted fields can have varying comma counts
+                if 'Date' in first_line and 'Time' in first_line:
+                    return True
+                
+                # Read a few more lines to check consistency (only for non-Date/Time files)
                 for i in range(min(5, 10)):
                     line = f.readline().strip()
                     if not line:
                         break
-                    if line.count(',') != comma_count:
+                    line_comma_count = line.count(',')
+                    if line_comma_count != comma_count:
                         return False
                 return True
-        except Exception:
+        except Exception as e:
             return False
 
     # Handle different file types
-    if filename.endswith(".txt") or filename.endswith(".log") or (filename.endswith(".csv") and not is_actual_csv(filepath)):
+    is_csv = is_actual_csv(filepath)
+    if filename.endswith(".txt") or filename.endswith(".log") or (filename.endswith(".csv") and not is_csv):
         # Treat as unstructured log file
         try:
             with open(filepath, "r", encoding='utf-8', errors='ignore') as f:
@@ -118,39 +125,53 @@ def preprocess_log(filepath):
 
     # Auto-detect timestamp column (handle different case variations, now all lowercased)
     timestamp_found = False
-    for timestamp_candidate in ["timestamp", "time", "date", "datetime"]:
-        if timestamp_candidate in df.columns:
-            df.rename(columns={timestamp_candidate: "timestamp"}, inplace=True)
-            timestamp_found = True
-            print(f"✅ Found timestamp column: {timestamp_candidate} -> timestamp")
-            break
+    # If both Date and Time columns exist, merge them into a timestamp
+    if 'date' in df.columns and 'time' in df.columns:
+        print("🔧 Merging Date and Time columns into timestamp...")
+        # Clean the Time column - remove quotes and handle comma in milliseconds
+        df['time'] = df['time'].astype(str).str.replace('"', '').str.replace(',', '.')
+        df['timestamp'] = df['date'].astype(str) + ' ' + df['time'].astype(str)
+        timestamp_found = True
+        print("✅ Created timestamp column from Date and Time")
+        # Parse using the correct format
+        try:
+            df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S.%f', errors='coerce')
+            failed = df['timestamp'].isna().sum()
+            if failed > 0:
+                print(f"⚠️  {failed} timestamp conversions failed, dropping those rows.")
+                df = df.dropna(subset=['timestamp'])
+            print(f"✅ Timestamp column converted to datetime format with custom format")
+        except Exception as e:
+            print(f"❌ Timestamp conversion failed: {e}")
+            print("🔧 Continuing without timestamp conversion")
+    else:
+        for timestamp_candidate in ["timestamp", "time", "date", "datetime"]:
+            if timestamp_candidate in df.columns:
+                df.rename(columns={timestamp_candidate: "timestamp"}, inplace=True)
+                timestamp_found = True
+                print(f"✅ Found timestamp column: {timestamp_candidate} -> timestamp")
+                break
     
     if not timestamp_found:
-        print("⚠️  No timestamp column found, adding current time")
-        df["timestamp"] = pd.Timestamp.now()
+        print("⚠️  No timestamp column found, proceeding without timestamps.")
     else:
         # Robustly convert timestamp column to datetime
         try:
-            if pd.api.types.is_numeric_dtype(df["timestamp"]):
-                # Handle Unix epoch timestamps
-                df["timestamp"] = pd.to_datetime(df["timestamp"], unit='s', errors='coerce')
-            else:
-                # Handle string timestamps
-                df["timestamp"] = pd.to_datetime(df["timestamp"], errors='coerce')
-            # Fill any failed conversions with current time
-            if df["timestamp"].isna().any():
-                print("⚠️  Some timestamp conversions failed, filling with current time")
-                df["timestamp"] = df["timestamp"].fillna(pd.Timestamp.now())
+            df["timestamp"] = pd.to_datetime(df["timestamp"], errors='coerce')
+            # Remove rows where timestamp conversion failed
+            failed = df["timestamp"].isna().sum()
+            if failed > 0:
+                print(f"⚠️  {failed} timestamp conversions failed, dropping those rows.")
+                df = df.dropna(subset=["timestamp"])
+            print(f"✅ Timestamp column converted to datetime format")
         except Exception as e:
-            print(f"⚠️  Warning: Timestamp conversion failed: {e}")
-            print("🔧 Using current time as fallback")
-            df["timestamp"] = pd.Timestamp.now()
+            print(f"❌ Timestamp conversion failed: {e}")
+            print("🔧 Continuing without timestamp conversion")
 
     # Clean up loglines
     df.dropna(subset=["logline"], inplace=True)
     df = df[df["logline"].astype(str).str.strip() != ""]  # Remove empty strings
-    
-    print(f"[DEBUG] Columns after normalization and cleaning: {list(df.columns)}")
+
     if df.empty:
         raise ValueError("❌ No valid log entries found after cleaning.")
 
@@ -220,25 +241,11 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
 
     detector = LogAnomalyDetection(config)
     
-    # Special handling for ETS algorithm which requires proper timestamps
-    if model_type == "ets":
-        print("🔍 ETS algorithm detected - ensuring proper timestamp format...")
-        # Check if we have timestamps in the data
-        if not has_timestamp:
-            print("❌ ERROR: ETS algorithm requires timestamps, but none found in data!")
-            print("🔧 Please use a log file with timestamp column or choose a different algorithm.")
-            raise ValueError("ETS algorithm requires timestamps in the log data")
-        
-        # Verify timestamps are in datetime format
-        try:
-            sample_timestamp = detector.timestamps.iloc[0] if not detector.timestamps.empty else None
-            if sample_timestamp is not None:
-                print(f"✅ Timestamp format verified: {type(sample_timestamp)}")
-                print(f"✅ Sample timestamp: {sample_timestamp}")
-            else:
-                print("⚠️  Warning: No timestamps found in detector data")
-        except Exception as e:
-            print(f"⚠️  Warning: Could not verify timestamp format: {e}")
+    # All algorithms now work with the enhanced timestamp handling
+    if has_timestamp:
+        print(f"✅ Timestamp column detected and will be used for analysis")
+    else:
+        print(f"⚠️  No timestamp column found, using log sequence for analysis")
     
     detector.execute()
     results = detector.results

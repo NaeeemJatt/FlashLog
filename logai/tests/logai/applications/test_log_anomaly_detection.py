@@ -72,7 +72,7 @@ class TestLogAnomalyDetection:
                 name="label_encoder",
             ),
             anomaly_detection_config=AnomalyDetectionConfig(
-                algo_name="dbl",
+                algo_name="one_class_svm",
             )
         )
 
@@ -106,7 +106,7 @@ class TestLogAnomalyDetection:
       "name": "label_encoder"
   },
       "anomaly_detection_config": {
-      "algo_name": "ets"
+      "algo_name": "one_class_svm"
   },
   "clustering_config": {
       "algo_name": "kmeans",

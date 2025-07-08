@@ -35,16 +35,7 @@ class LogAnomaly(ParamInfoMixin):
             "DistributionDivergence",
             "DistributionDivergenceParams",
         ),
-        "dbl": (
-            "logai.algorithms.anomaly_detection_algo.dbl",
-            "DBLDetector",
-            "DBLDetectorParams",
-        ),
-        "ets": (
-            "logai.algorithms.anomaly_detection_algo.ets",
-            "ETSDetector",
-            "ETSDetectorParams",
-        ),
+
     }
 
     def __init__(self):

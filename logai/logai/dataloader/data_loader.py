@@ -112,6 +112,16 @@ class FileDataLoader:
         log_record = LogRecordObject()
         # Read all available log fields from config.
 
+        # Always use 'timestamp' column if it exists, even if not in dims
+        if 'timestamp' in df.columns:
+            ts_df = pd.DataFrame(df['timestamp'])
+            ts_df.columns = [constants.LOG_TIMESTAMPS]
+            if self.config.infer_datetime:
+                ts_df[constants.LOG_TIMESTAMPS] = pd.to_datetime(ts_df[constants.LOG_TIMESTAMPS], errors='coerce')
+                if ts_df[constants.LOG_TIMESTAMPS].isna().any():
+                    ts_df[constants.LOG_TIMESTAMPS] = ts_df[constants.LOG_TIMESTAMPS].fillna(pd.Timestamp.now())
+            setattr(log_record, 'timestamp', ts_df)
+        
         if not dims:
             selected = pd.DataFrame(
                 df.agg(lambda x: " ".join(map(str, x.values)), axis=1).rename(

@@ -124,4 +124,20 @@ dmypy.json
 .pyre/
 
 # pytype static type analyzer
-.pytype/ 
+.pytype/
+
+# FlashLog specific ignores
+flashlog/uploads/
+flashlog/*.csv
+flashlog/*.log
+flashlog/*.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db 

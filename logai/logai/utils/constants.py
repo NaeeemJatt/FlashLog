@@ -38,4 +38,4 @@ LOG_COUNTS = "counts"
 
 # HYPER PARAMS
 MIN_TS_LENGTH = 10
-COUNTER_AD_ALGO = ["ets", "dbl"]
+COUNTER_AD_ALGO = []

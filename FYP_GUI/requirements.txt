@@ -1,5 +1,0 @@
-flask
-logai
-elasticsearch
-pandas
-werkzeug

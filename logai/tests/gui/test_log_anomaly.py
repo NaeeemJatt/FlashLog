@@ -50,7 +50,7 @@ class TestLogAnomaly:
                 name="label_encoder",
             ),
             anomaly_detection_config=AnomalyDetectionConfig(
-                algo_name="dbl",
+                algo_name="one_class_svm",
             )
         )
 

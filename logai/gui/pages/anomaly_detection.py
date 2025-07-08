@@ -74,8 +74,6 @@ def create_ad_algo_setting_layout():
                     "isolation_forest",
                     "LOF",
                     "distribution_divergence",
-                    "dbl",
-                    "ets",
                 ],
                 value="one_class_svm",
             ),

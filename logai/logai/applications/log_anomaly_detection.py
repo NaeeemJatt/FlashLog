@@ -192,7 +192,17 @@ class LogAnomalyDetection:
                         shuffle=False,
                         train_size=0.7,
                     )
-                    
+
+                    # Flatten the timestamp column if it contains lists
+                    if train[constants.LOG_TIMESTAMPS].apply(lambda x: isinstance(x, list)).any():
+                        print("[DEBUG] Exploding train DataFrame to flatten timestamp column...")
+                        train = train.explode(constants.LOG_TIMESTAMPS)
+                        test = test.explode(constants.LOG_TIMESTAMPS)
+
+                    print(f"[DEBUG] Train DataFrame columns: {train.columns}")
+                    print(f"[DEBUG] Train DataFrame unique timestamps: {train[constants.LOG_TIMESTAMPS].unique()}")
+                    print(f"[DEBUG] Train DataFrame shape: {train.shape}")
+
                     anomaly_detector = AnomalyDetector(
                         self.config.anomaly_detection_config
                     )

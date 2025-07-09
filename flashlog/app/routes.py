@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from .logai_handler import process_log_file
+from .auth import login_required, get_current_user
 import numpy as np
 
 main = Blueprint('main', __name__)
@@ -72,6 +73,7 @@ def compute_dashboard_metrics():
     }
 
 @main.route('/', methods=['GET', 'POST'])
+@login_required
 def index():
     # Compute dashboard metrics
     dashboard_metrics = compute_dashboard_metrics()
@@ -215,6 +217,7 @@ def index():
     return render_template('index.html', metrics=dashboard_metrics)
 
 @main.route('/analyzed-logs')
+@login_required
 def analyzed_logs():
     """Display analysis results with pagination"""
     print("🔍 Analyzed logs route called")
@@ -277,6 +280,7 @@ def analyzed_logs():
     return response
 
 @main.route('/download/<filename>')
+@login_required
 def download_csv(filename):
     """Download the analysis results CSV file"""
     try:

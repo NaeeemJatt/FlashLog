@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlashLog - Activity History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.6s ease-out; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <nav class="fixed top-0 left-0 w-full z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg shadow-gray-900/10">
+        <div class="max-w-7xl mx-auto flex items-center justify-between h-16 px-6">
+            <div class="flex items-center gap-3">
+                <div class="relative group">
+                    <div class="font-bold text-xl text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        FlashLog
+                    </div>
+                </div>
+                <span class="text-sm text-gray-500 dark:text-gray-400">Activity History</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('main.index') }}" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    Dashboard
+                </a>
+                <div class="relative group">
+                    <div class="flex items-center gap-3 px-4 py-2 bg-gray-100/50 dark:bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-all duration-200">
+                        <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                            {{ session.username[0].upper() }}
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ session.username }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <main class="pt-20 pb-6 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-8 fade-in">
+                <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Activity History</h1>
+                <p class="text-gray-600 dark:text-gray-400">Track your log analysis activities and account events in real time.</p>
+                <button onclick="fetchLatestActivities()" class="mt-4 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Refresh Now
+                </button>
+            </div>
+            <!-- Filter Controls -->
+            <form method="get" class="mb-6 flex flex-wrap gap-4 items-end fade-in">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                    <select name="type" class="rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                        <option value="">All</option>
+                        {% for t in activity_types %}
+                        <option value="{{ t.activity_type }}" {% if current_filters.type == t.activity_type %}selected{% endif %}>{{ t.activity_type|replace('_', ' ')|title }} ({{ t.count }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                    <select name="status" class="rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                        <option value="">All</option>
+                        {% for s in status_stats %}
+                        <option value="{{ s.status }}" {% if current_filters.status == s.status %}selected{% endif %}>{{ s.status|title }} ({{ s.count }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From</label>
+                    <input type="date" name="date_from" value="{{ current_filters.date_from }}" class="rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To</label>
+                    <input type="date" name="date_to" value="{{ current_filters.date_to }}" class="rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                </div>
+                <button type="submit" class="ml-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg">Filter</button>
+            </form>
+            <!-- Activity Table -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden fade-in" 
+                 data-last-activity-id="{{ activities[0].id if activities and activities|length > 0 else 0 }}">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[700px]">
+                        <thead class="bg-gray-100 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activity-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {% if activities %}
+                                {% for activity in activities %}
+                                <tr>
+                                    <td class="px-4 py-3 whitespace-nowrap flex items-center gap-2">
+                                        {% if activity.activity_type == 'login' %}
+                                            <span title="Login"><svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                                        {% elif activity.activity_type == 'logout' %}
+                                            <span title="Logout"><svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5m7-7l-7 7 7 7"/></svg></span>
+                                        {% elif activity.activity_type == 'log_analysis' %}
+                                            <span title="Log Analysis"><svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span>
+                                        {% elif activity.activity_type == 'profile_update' %}
+                                            <span title="Profile Update"><svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></span>
+                                        {% else %}
+                                            <span title="Other"><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/></svg></span>
+                                        {% endif %}
+                                        <span class="capitalize">{{ activity.activity_type|replace('_', ' ') }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        {% if activity.status == 'success' %}
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Success</span>
+                                        {% elif activity.status == 'failed' %}
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"><svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Failed</span>
+                                        {% else %}
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">{{ activity.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                        {% if activity.created_at %}
+                                            {% if activity.created_at is string %}
+                                                {{ activity.created_at }}
+                                            {% else %}
+                                                {{ activity.created_at.strftime('%b %d, %Y %I:%M %p') }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white max-w-xs break-words">
+                                        {{ activity.description }}
+                                        {% if activity.details %}<br><span class="text-xs text-gray-500 dark:text-gray-400">{{ activity.details }}</span>{% endif %}
+                                        {% if activity.file_name %}<br><span class="text-xs text-blue-500">File: {{ activity.file_name }}</span>{% endif %}
+                                        {% if activity.ip_address %}<br><span class="text-xs text-gray-400">IP: {{ activity.ip_address }}</span>{% endif %}
+                                        {% if activity.user_agent %}<br><span class="text-xs text-gray-400">Device: {{ activity.user_agent[:40] }}{% if activity.user_agent|length > 40 %}...{% endif %}</span>{% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="4" class="text-center text-gray-500 dark:text-gray-400 py-8">No activities found.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Pagination -->
+            {% if pagination.total_pages > 1 %}
+            <div class="mt-8 flex items-center justify-between">
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                    Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} to 
+                    {{ pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total_count else pagination.total_count }} 
+                    of {{ pagination.total_count }} activities
+                </div>
+                <div class="flex items-center space-x-2">
+                    {% if pagination.page > 1 %}
+                        <a href="{{ url_for('main.history', page=pagination.page-1, **current_filters) }}" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Previous</a>
+                    {% endif %}
+                    {% for page_num in range(1, pagination.total_pages + 1) %}
+                        {% if page_num == pagination.page %}
+                            <span class="px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg">{{ page_num }}</span>
+                        {% elif page_num <= 3 or page_num > pagination.total_pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                            <a href="{{ url_for('main.history', page=page_num, **current_filters) }}" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">{{ page_num }}</a>
+                        {% elif page_num == 4 and pagination.page > 5 %}
+                            <span class="px-3 py-2 text-gray-500">...</span>
+                        {% elif page_num == pagination.total_pages - 3 and pagination.page < pagination.total_pages - 4 %}
+                            <span class="px-3 py-2 text-gray-500">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    {% if pagination.page < pagination.total_pages %}
+                        <a href="{{ url_for('main.history', page=pagination.page+1, **current_filters) }}" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Next</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+    <script>
+    // Real-time polling for new activities
+    let lastActivityId = parseInt(document.querySelector('[data-last-activity-id]').getAttribute('data-last-activity-id')) || 0;
+    
+    function fetchLatestActivities() {
+        console.log('Fetching latest activities, lastActivityId:', lastActivityId);
+        
+        // Show loading indicator
+        const refreshBtn = document.querySelector('button[onclick="fetchLatestActivities()"]');
+        if (refreshBtn) {
+            const originalText = refreshBtn.innerHTML;
+            refreshBtn.innerHTML = '<svg class="w-4 h-4 inline mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Refreshing...';
+            refreshBtn.disabled = true;
+        }
+        
+        fetch(`/api/history/latest?last_id=${lastActivityId}`)
+            .then(res => res.json())
+            .then(data => {
+                console.log('Received data:', data);
+                if (data.activities && data.activities.length > 0) {
+                    const tbody = document.getElementById('activity-table-body');
+                    
+                    // Remove "No activities found" row if it exists
+                    const noActivitiesRow = tbody.querySelector('tr td[colspan="4"]');
+                    if (noActivitiesRow) {
+                        noActivitiesRow.parentElement.remove();
+                    }
+                    
+                    data.activities.reverse().forEach(activity => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="px-4 py-3 whitespace-nowrap flex items-center gap-2">
+                                ${activity.activity_type === 'login' ? '<span title="Login"><svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg></span>' :
+                                activity.activity_type === 'logout' ? '<span title="Logout"><svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5m7-7l-7 7 7 7"/></svg></span>' :
+                                activity.activity_type === 'log_analysis' ? '<span title="Log Analysis"><svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span>' :
+                                activity.activity_type === 'profile_update' ? '<span title="Profile Update"><svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></span>' :
+                                '<span title="Other"><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/></svg></span>'}
+                                <span class="capitalize">${activity.activity_type.replace('_', ' ')}</span>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                ${activity.status === 'success' ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Success</span>' :
+                                activity.status === 'failed' ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"><svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Failed</span>' :
+                                `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">${activity.status}</span>`}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${activity.created_at}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white max-w-xs break-words">
+                                ${activity.description || ''}
+                                ${activity.details ? `<br><span class='text-xs text-gray-500 dark:text-gray-400'>${activity.details}</span>` : ''}
+                                ${activity.file_name ? `<br><span class='text-xs text-blue-500'>File: ${activity.file_name}</span>` : ''}
+                                ${activity.ip_address ? `<br><span class='text-xs text-gray-400'>IP: ${activity.ip_address}</span>` : ''}
+                                ${activity.user_agent ? `<br><span class='text-xs text-gray-400'>Device: ${activity.user_agent.substring(0,40)}${activity.user_agent.length > 40 ? '...' : ''}</span>` : ''}
+                            </td>
+                        `;
+                        tbody.prepend(tr);
+                        lastActivityId = Math.max(lastActivityId, activity.id);
+                    });
+                    
+                    // Add visual feedback for new activities
+                    const newRows = tbody.querySelectorAll('tr:not(.fade-in)');
+                    newRows.forEach(row => {
+                        row.classList.add('fade-in');
+                        row.style.animation = 'fadeIn 0.6s ease-out';
+                    });
+                }
+                
+                // Reset refresh button
+                if (refreshBtn) {
+                    refreshBtn.innerHTML = '<svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Refresh Now';
+                    refreshBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching latest activities:', error);
+                
+                // Reset refresh button on error
+                if (refreshBtn) {
+                    refreshBtn.innerHTML = '<svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Refresh Now';
+                    refreshBtn.disabled = false;
+                }
+            });
+    }
+    
+    // Start polling immediately and then every 2 seconds
+    fetchLatestActivities();
+    setInterval(fetchLatestActivities, 2000); // Poll every 2 seconds
+    
+    // Also fetch when the page becomes visible (user switches back to tab)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            fetchLatestActivities();
+        }
+    });
+    </script>
+</body>
+</html> 

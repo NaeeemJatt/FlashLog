@@ -1,4 +1,6 @@
 flask==2.3.3
+flask_wtf==1.1.1
+flask_limiter==3.5.0
 elasticsearch==8.11.0
 pandas==2.1.1
 werkzeug==2.3.7

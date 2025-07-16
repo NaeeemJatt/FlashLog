@@ -132,6 +132,49 @@ flashlog/*.csv
 flashlog/*.log
 flashlog/*.txt
 
+# Database files (contain user credentials and sensitive data)
+flashlog/users.db
+flashlog/flashlog/users.db
+flashlog/flashlog/users_backup_*.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment and configuration files
+.env
+.env.local
+.env.production
+.env.development
+flashlog/env_example.txt
+
+# Emergency admin script (contains hardcoded credentials)
+flashlog/create_emergency_admin.py
+flashlog/EMERGENCY_ADMIN_README.md
+
+# Backup and temporary files
+*_backup_*
+*.bak
+*.tmp
+*.temp
+
+# Log files with sensitive information
+*.log
+logs/
+flashlog/logs/
+
+# Test data files
+test_cases/
+test_upload.html
+
+# User activity and migration scripts
+flashlog/check_activities.py
+flashlog/ensure_user_activities_table.py
+flashlog/test_activities.py
+flashlog/migrate_db.py
+
+# Security documentation
+flashlog/SECURITY.md
+
 # IDE
 .vscode/
 .idea/

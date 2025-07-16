@@ -22,12 +22,19 @@ def create_app():
     # Initialize CSRF protection
     csrf = CSRFProtect(app)
     
-    # Initialize rate limiting
-    limiter = Limiter(
-        app=app,
-        key_func=get_remote_address,
-        default_limits=["200 per day", "50 per hour"]
-    )
+    # Initialize rate limiting with Redis-like storage (or use memory for development)
+    try:
+        from flask_limiter.util import get_remote_address
+        from flask_limiter import Limiter
+        limiter = Limiter(
+            app=app,
+            key_func=get_remote_address,
+            default_limits=["200 per day", "50 per hour"],
+            storage_uri="memory://"  # Use memory storage for development
+        )
+    except ImportError:
+        # Fallback if flask-limiter is not available
+        limiter = None
     
     # Add security headers
     @app.after_request

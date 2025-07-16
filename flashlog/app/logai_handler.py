@@ -133,17 +133,19 @@ def preprocess_log(filepath):
         df['timestamp'] = df['date'].astype(str) + ' ' + df['time'].astype(str)
         timestamp_found = True
         print("✅ Created timestamp column from Date and Time")
-        # Parse using the correct format
+        # Parse using the correct format - be more lenient
         try:
             df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S.%f', errors='coerce')
             failed = df['timestamp'].isna().sum()
             if failed > 0:
-                print(f"⚠️  {failed} timestamp conversions failed, dropping those rows.")
-                df = df.dropna(subset=['timestamp'])
+                print(f"⚠️  {failed} timestamp conversions failed, but keeping rows with current timestamp.")
+                # Instead of dropping, fill failed conversions with current time
+                df['timestamp'] = df['timestamp'].fillna(pd.Timestamp.now())
             print(f"✅ Timestamp column converted to datetime format with custom format")
         except Exception as e:
             print(f"❌ Timestamp conversion failed: {e}")
-            print("🔧 Continuing without timestamp conversion")
+            print("🔧 Using current timestamp for all rows")
+            df['timestamp'] = pd.Timestamp.now()
     else:
         for timestamp_candidate in ["timestamp", "time", "date", "datetime"]:
             if timestamp_candidate in df.columns:
@@ -155,24 +157,42 @@ def preprocess_log(filepath):
     if not timestamp_found:
         print("⚠️  No timestamp column found, proceeding without timestamps.")
     else:
-        # Robustly convert timestamp column to datetime
+        # Robustly convert timestamp column to datetime - be more lenient
         try:
             df["timestamp"] = pd.to_datetime(df["timestamp"], errors='coerce')
-            # Remove rows where timestamp conversion failed
+            # Instead of dropping failed conversions, fill with current time
             failed = df["timestamp"].isna().sum()
             if failed > 0:
-                print(f"⚠️  {failed} timestamp conversions failed, dropping those rows.")
-                df = df.dropna(subset=["timestamp"])
+                print(f"⚠️  {failed} timestamp conversions failed, filling with current timestamp.")
+                df["timestamp"] = df["timestamp"].fillna(pd.Timestamp.now())
             print(f"✅ Timestamp column converted to datetime format")
         except Exception as e:
             print(f"❌ Timestamp conversion failed: {e}")
-            print("🔧 Continuing without timestamp conversion")
+            print("🔧 Using current timestamp for all rows")
+            df["timestamp"] = pd.Timestamp.now()
 
-    # Clean up loglines
+    # Clean up loglines - be very lenient with cleaning
     df.dropna(subset=["logline"], inplace=True)
     df = df[df["logline"].astype(str).str.strip() != ""]  # Remove empty strings
-
-    if df.empty:
+    
+    # For Android logs, be very lenient - only remove completely empty lines
+    df = df[df["logline"].astype(str).str.strip().str.len() > 0]  # Keep any non-empty lines
+    
+    # For Android logs, also check if we have meaningful content
+    if len(df) > 0:
+        # Check if we have any lines with typical log patterns
+        log_patterns = ['error', 'warning', 'info', 'debug', 'exception', 'failed', 'success', 'android', 'system', 'app', 'service', 'log', 'event', 'activity']
+        has_log_patterns = df["logline"].astype(str).str.lower().str.contains('|'.join(log_patterns)).any()
+        
+        if not has_log_patterns:
+            # If no typical log patterns, just keep all non-empty content
+            non_empty_content = df[df["logline"].astype(str).str.strip().str.len() > 0]
+            if len(non_empty_content) == 0:
+                raise ValueError("❌ No valid log entries found after cleaning.")
+            else:
+                df = non_empty_content
+                print(f"⚠️  No typical log patterns found, but keeping {len(df)} non-empty entries")
+    else:
         raise ValueError("❌ No valid log entries found after cleaning.")
 
     cleaned_path = filepath.replace(".csv", "_cleaned.csv").replace(".txt", "_cleaned.csv").replace(".log", "_cleaned.csv")

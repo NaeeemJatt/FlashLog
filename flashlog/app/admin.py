@@ -7,7 +7,7 @@ import re
 
 admin = Blueprint('admin', __name__)
 
-@admin.route('/admin/dashboard')
+@admin.route('/dashboard')
 @login_required
 @admin_required
 def dashboard():
@@ -38,7 +38,7 @@ def dashboard():
                          admin_users=admin_users,
                          recent_logins=recent_logins)
 
-@admin.route('/admin/users')
+@admin.route('/users')
 @login_required
 @admin_required
 def users():
@@ -58,6 +58,9 @@ def users():
     for user in users_raw:
         user_dict = dict(user)
         
+        # Add is_admin property for template compatibility
+        user_dict['is_admin'] = user_dict['role'] == 'admin'
+        
         # Convert created_at string to datetime if it exists
         if user_dict['created_at']:
             try:
@@ -76,7 +79,7 @@ def users():
     
     return render_template('admin/users.html', users=users_list)
 
-@admin.route('/admin/users/create', methods=['GET', 'POST'])
+@admin.route('/users/create', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def create_user():
@@ -159,11 +162,17 @@ def create_user():
     
     return render_template('admin/create_user.html')
 
-@admin.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@admin.route('/users/<int:user_id>/delete', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def delete_user(user_id):
     """Delete user"""
+    # Handle GET requests (someone trying to access via URL)
+    if request.method == 'GET':
+        print(f"DEBUG: GET request to delete user {user_id} from IP {request.remote_addr}")
+        flash('Delete action must be performed through the form. Please use the delete button.', 'error')
+        return redirect(url_for('admin.users'))
+    
     # Prevent admin from deleting themselves
     if user_id == session.get('user_id'):
         flash('You cannot delete your own account!', 'error')
@@ -176,17 +185,44 @@ def delete_user(user_id):
         flash('User not found!', 'error')
         return redirect(url_for('admin.users'))
     
-    # Delete user sessions first
-    conn.execute('DELETE FROM user_sessions WHERE user_id = ?', (user_id,))
-    # Delete user
-    conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
-    conn.commit()
-    conn.close()
+    try:
+        # Delete user activities first (due to foreign key constraint)
+        conn.execute('DELETE FROM user_activities WHERE user_id = ?', (user_id,))
+        # Delete user sessions
+        conn.execute('DELETE FROM user_sessions WHERE user_id = ?', (user_id,))
+        # Delete user
+        conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        flash(f'Error deleting user: Database constraint violation. {str(e)}', 'error')
+        return redirect(url_for('admin.users'))
+    except Exception as e:
+        conn.close()
+        flash(f'Error deleting user: {str(e)}', 'error')
+        return redirect(url_for('admin.users'))
+    
+    # Log the deletion activity
+    try:
+        from .routes import log_user_activity
+        log_user_activity(
+            user_id=session.get('user_id'),
+            activity_type='admin_action',
+            description=f'Deleted user account',
+            details=f'Admin deleted user: {user["username"]} (ID: {user_id})',
+            status='success',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', 'Unknown')
+        )
+    except Exception as e:
+        # Log error but don't fail the deletion
+        print(f"Warning: Could not log user deletion activity: {e}")
     
     flash(f'User "{user["username"]}" deleted successfully!', 'success')
     return redirect(url_for('admin.users'))
 
-@admin.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
+@admin.route('/users/<int:user_id>/toggle-status', methods=['POST'])
 @login_required
 @admin_required
 def toggle_user_status(user_id):
@@ -204,15 +240,32 @@ def toggle_user_status(user_id):
         return redirect(url_for('admin.users'))
     
     new_status = 0 if user['is_active'] else 1
+    status_text = 'activated' if new_status else 'deactivated'
+    
     conn.execute('UPDATE users SET is_active = ? WHERE id = ?', (new_status, user_id))
     conn.commit()
     conn.close()
     
-    status_text = 'activated' if new_status else 'deactivated'
+    # Log the status change activity
+    try:
+        from .routes import log_user_activity
+        log_user_activity(
+            user_id=session.get('user_id'),
+            activity_type='admin_action',
+            description=f'Changed user status',
+            details=f'Admin {status_text} user: {user["username"]} (ID: {user_id})',
+            status='success',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', 'Unknown')
+        )
+    except Exception as e:
+        # Log error but don't fail the status change
+        print(f"Warning: Could not log user status change activity: {e}")
+    
     flash(f'User "{user["username"]}" {status_text} successfully!', 'success')
     return redirect(url_for('admin.users'))
 
-@admin.route('/admin/users/<int:user_id>/change-role', methods=['POST'])
+@admin.route('/users/<int:user_id>/change-role', methods=['POST'])
 @login_required
 @admin_required
 def change_user_role(user_id):
@@ -241,7 +294,7 @@ def change_user_role(user_id):
     flash(f'User "{user["username"]}" role changed to {new_role} successfully!', 'success')
     return redirect(url_for('admin.users'))
 
-@admin.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@admin.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_user(user_id):
@@ -313,7 +366,7 @@ def edit_user(user_id):
     
     return render_template('admin/edit_user.html', user=user)
 
-@admin.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
+@admin.route('/users/<int:user_id>/reset-password', methods=['POST'])
 @login_required
 @admin_required
 def reset_user_password(user_id):

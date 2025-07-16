@@ -9,7 +9,7 @@ import re
 auth = Blueprint('auth', __name__)
 
 def init_db():
-    """Initialize the database with users table and create hardcoded admin user"""
+    """Initialize the database with users table"""
     db_path = 'flashlog/users.db'
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
     
@@ -64,29 +64,6 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
-    
-    # Create admin user with secure password
-    admin_username = 'admin'
-    admin_email = 'admin@flashlog.com'
-    # Use environment variable for admin password or generate a secure one
-    admin_password = os.environ.get('ADMIN_PASSWORD') or 'Admin@FlashLog2024!'
-    admin_password_hash = generate_password_hash(admin_password)
-    
-    # Check if admin user already exists
-    cursor.execute('SELECT * FROM users WHERE username = ?', (admin_username,))
-    existing_admin = cursor.fetchone()
-    
-    if not existing_admin:
-        try:
-            cursor.execute('''
-                INSERT INTO users (username, email, password_hash, role) 
-                VALUES (?, ?, ?, ?)
-            ''', (admin_username, admin_email, admin_password_hash, 'admin'))
-            print(f"✅ Admin user '{admin_username}' created successfully!")
-        except sqlite3.IntegrityError as e:
-            print(f"❌ Error creating admin user: {e}")
-        except Exception as e:
-            print(f"❌ Unexpected error: {e}")
     
     conn.commit()
     conn.close()
@@ -171,7 +148,23 @@ def register():
             (username, email, password_hash)
         )
         conn.commit()
+        
+        # Get the newly created user ID for logging
+        new_user = conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
         conn.close()
+        
+        # Log user registration activity
+        if new_user and new_user['id']:
+            from .routes import log_user_activity
+            log_user_activity(
+                user_id=new_user['id'],
+                activity_type='registration',
+                description=f'New user account created',
+                details=f'Registration completed for username: {username}, email: {email}',
+                status='success',
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent', 'Unknown')
+            )
         
         flash('Registration successful! Please log in.', 'success')
         return redirect(url_for('auth.login'))
@@ -408,13 +401,84 @@ def get_current_user():
     
     return user
 
-@auth.route('/profile')
+@auth.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    """User profile page"""
+    """User profile page with update functionality"""
     user = get_current_user()
     if not user:
         return redirect(url_for('auth.login'))
+    
+    if request.method == 'POST':
+        # Handle profile updates
+        new_email = request.form.get('email', '').strip().lower()
+        new_username = request.form.get('username', '').strip()
+        
+        # Validate inputs
+        if not new_email or not new_username:
+            flash('Email and username are required!', 'error')
+            return render_template('auth/profile.html', user=user)
+        
+        # Validate email format
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', new_email):
+            flash('Please enter a valid email address!', 'error')
+            return render_template('auth/profile.html', user=user)
+        
+        # Validate username format
+        if not re.match(r'^[a-zA-Z0-9_]{3,20}$', new_username):
+            flash('Username must be 3-20 characters long and contain only letters, numbers, and underscores!', 'error')
+            return render_template('auth/profile.html', user=user)
+        
+        # Check if email/username already exists (excluding current user)
+        conn = get_db_connection()
+        existing_user = conn.execute(
+            'SELECT * FROM users WHERE (username = ? OR email = ?) AND id != ?', 
+            (new_username, new_email, user.get('id', 0))
+        ).fetchone()
+        conn.close()
+        
+        if existing_user:
+            flash('Username or email already exists!', 'error')
+            return render_template('auth/profile.html', user=user)
+        
+        # Store old values for logging
+        old_username = user.get('username', '')
+        old_email = user.get('email', '')
+        
+        # Update profile
+        conn = get_db_connection()
+        conn.execute(
+            'UPDATE users SET username = ?, email = ? WHERE id = ?',
+            (new_username, new_email, user.get('id', 0))
+        )
+        conn.commit()
+        conn.close()
+        
+        # Log profile update activity
+        from .routes import log_user_activity
+        changes = []
+        if old_username != new_username:
+            changes.append(f"username: {old_username} → {new_username}")
+        if old_email != new_email:
+            changes.append(f"email: {old_email} → {new_email}")
+        
+        log_user_activity(
+            user_id=user.get('id', 0),
+            activity_type='profile_update',
+            description='Profile information updated',
+            details=f'Updated: {", ".join(changes)}',
+            status='success',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', 'Unknown'),
+            old_value=f"username: {old_username}, email: {old_email}",
+            new_value=f"username: {new_username}, email: {new_email}"
+        )
+        
+        # Update session with new username
+        session['username'] = new_username
+        
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('auth.profile'))
     
     return render_template('auth/profile.html', user=user)
 
@@ -441,6 +505,10 @@ def change_password():
         
         # Verify current password
         user = get_current_user()
+        if not user:
+            flash('User session invalid. Please log in again!', 'error')
+            return render_template('auth/change_password.html')
+            
         if not check_password_hash(user['password_hash'], current_password):
             flash('Current password is incorrect!', 'error')
             return render_template('auth/change_password.html')
@@ -458,8 +526,8 @@ def change_password():
         # Log password change activity
         from .routes import log_user_activity
         log_user_activity(
-            user_id=user['id'],
-            activity_type='profile_update',
+            user_id=user.get('id', 0),
+            activity_type='password_change',
             description='Password changed successfully',
             details='Password was updated',
             status='success',

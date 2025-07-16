@@ -10,13 +10,20 @@ import numpy as np
 
 def log_user_activity(user_id, activity_type, description, details=None, status='success', ip_address=None, user_agent=None, file_name=None, file_size=None, processing_time=None, anomalies_detected=None, total_logs=None, old_value=None, new_value=None):
     """Log user activity to the database with enhanced tracking"""
-    conn = get_db_connection()
-    conn.execute('''
-        INSERT INTO user_activities (user_id, activity_type, description, details, status, ip_address, user_agent, file_name, file_size, processing_time, anomalies_detected, total_logs, old_value, new_value)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (user_id, activity_type, description, details, status, ip_address, user_agent, file_name, file_size, processing_time, anomalies_detected, total_logs, old_value, new_value))
-    conn.commit()
-    conn.close()
+    try:
+        print(f"🔍 Logging activity: {activity_type} - {description}")
+        conn = get_db_connection()
+        conn.execute('''
+            INSERT INTO user_activities (user_id, activity_type, description, details, status, ip_address, user_agent, file_name, file_size, processing_time, anomalies_detected, total_logs, old_value, new_value)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, activity_type, description, details, status, ip_address, user_agent, file_name, file_size, processing_time, anomalies_detected, total_logs, old_value, new_value))
+        conn.commit()
+        conn.close()
+        print(f"✅ Activity logged successfully: {activity_type}")
+    except Exception as e:
+        print(f"❌ Error logging activity: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 main = Blueprint('main', __name__)
 
@@ -151,7 +158,8 @@ def index():
         file = request.files.get('logfile')
         if not file:
             print("❌ No file uploaded")
-            return jsonify({'error': 'No file uploaded.'}), 400
+            flash('No file uploaded.', 'error')
+            return redirect(url_for('main.index'))
 
         # File upload security validation
         ALLOWED_EXTENSIONS = {'log', 'txt', 'csv'}
@@ -163,7 +171,8 @@ def index():
         
         # Check file extension
         if not allowed_file(file.filename):
-            return jsonify({'error': 'Invalid file type. Only .log, .txt, and .csv files are allowed.'}), 400
+            flash('Invalid file type. Only .log, .txt, and .csv files are allowed.', 'error')
+            return redirect(url_for('main.index'))
         
         # Check file size
         file.seek(0, 2)  # Seek to end
@@ -171,7 +180,8 @@ def index():
         file.seek(0)  # Reset to beginning
         
         if file_size > MAX_FILE_SIZE:
-            return jsonify({'error': f'File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB.'}), 400
+            flash(f'File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB.', 'error')
+            return redirect(url_for('main.index'))
         
         # Secure filename and save
         filename = secure_filename(file.filename or 'unknown_file')
@@ -199,7 +209,8 @@ def index():
                     user_agent=request.headers.get('User-Agent', 'Unknown'),
                     file_name=filename
                 )
-            return jsonify({'error': str(e)}), 400
+            flash(f'Analysis failed: {str(e)}', 'error')
+            return redirect(url_for('main.index'))
         except Exception as e:
             print(f"❌ Exception during analysis: {str(e)}")
             import traceback
@@ -217,7 +228,8 @@ def index():
                     user_agent=request.headers.get('User-Agent', 'Unknown'),
                     file_name=filename
                 )
-            return jsonify({'error': f'Error during analysis: {str(e)}'}), 500
+            flash(f'Error during analysis: {str(e)}', 'error')
+            return redirect(url_for('main.index'))
 
         print("📊 Processing results...")
         num_logs = len(result_data)
@@ -269,31 +281,18 @@ def index():
         # Check if this is an AJAX request (X-Requested-With header)
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         
-        if is_ajax:
-            # Return JSON for AJAX requests
-            response_data = {
-                'results': results_dict,
-                'csv_path': csv_path,
-                'kibana_url': f"http://localhost:5601/app/discover#/?_a=(index:'{index_name}',columns:!(_source))",
-                'summary': {
-                    'total_logs': int(num_logs),
-                    'total_anomalies': int(num_anomalies),
-                    'success_rate': round(((num_logs - num_anomalies) / num_logs * 100), 1),
-                    'index_name': index_name
-                }
-            }
-            print(f"✅ Returning JSON response for AJAX request")
-            return jsonify(response_data)
-        else:
-            # Store results in session for traditional form submission
-            print("💾 Storing data in session...")
-            print(f"   - Session before storing: {list(session.keys())}")
-            
+        # Always redirect to separate page for better user experience
+        # Store results in session for traditional form submission
+        print("💾 Storing data in session...")
+        print(f"   - Session before storing: {list(session.keys())}")
+        
+        try:
             # Set session timeout based on user preference
             session.permanent = True
             session.modified = True  # Update session timestamp
-            session['analysis_results'] = results_dict
-            session['csv_path'] = csv_path
+            
+            # Store only essential data in session to avoid size limits
+            session['analysis_file'] = csv_path  # Store the CSV file path
             session['kibana_url'] = f"http://localhost:5601/app/discover#/?_a=(index:'{index_name}',columns:!(_source))"
             session['analysis_summary'] = {
                 'total_logs': int(num_logs),
@@ -303,9 +302,10 @@ def index():
             }
             
             print(f"   - Session after storing: {list(session.keys())}")
-            print(f"   - Analysis results count: {len(session.get('analysis_results', []))}")
-            print(f"   - CSV path in session: {session.get('csv_path')}")
+            print(f"   - Analysis file in session: {session.get('analysis_file')}")
+            print(f"   - CSV path: {csv_path}")
             print(f"   - Analysis summary in session: {session.get('analysis_summary')}")
+            print(f"   - Session data types: analysis_file={type(session.get('analysis_file'))}, summary={type(session.get('analysis_summary'))}")
 
             print(f"✅ Analysis completed successfully. Results stored in session.")
             print(f"   - Total logs: {num_logs}")
@@ -332,10 +332,18 @@ def index():
                     total_logs=int(num_logs)
                 )
 
-            # Use traditional redirect for non-AJAX requests
+            # Always redirect to separate results page
             flash(f"✅ {num_logs} log entries processed. {num_anomalies} anomalies detected. Sent to index: {index_name}")
             print("🔄 Redirecting to /analyzed-logs...")
+            print(f"   - Final session check before redirect: {list(session.keys())}")
             return redirect(url_for('main.analyzed_logs'))
+            
+        except Exception as e:
+            print(f"❌ Error storing results in session: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            flash(f"Error processing results: {str(e)}", 'error')
+            return redirect(url_for('main.index'))
 
     return render_template('index.html', metrics=dashboard_metrics)
 
@@ -346,24 +354,59 @@ def analyzed_logs():
     print("🔍 Analyzed logs route called")
     print(f"   - Request method: {request.method}")
     print(f"   - Request URL: {request.url}")
+    print(f"   - Session ID: {session.get('_id', 'No session ID')}")
+    print(f"   - All session keys: {list(session.keys())}")
     
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
-    # Get results from session
-    results = session.get('analysis_results', [])
-    csv_path = session.get('csv_path')
+    # Get data from session
+    analysis_file = session.get('analysis_file')
     kibana_url = session.get('kibana_url')
     analysis_summary = session.get('analysis_summary', {})
     
-    print(f"   - Results in session: {len(results)}")
-    print(f"   - CSV path: {csv_path}")
+    print(f"   - Analysis file in session: {analysis_file}")
     print(f"   - Analysis summary: {analysis_summary}")
     print(f"   - All session keys: {list(session.keys())}")
     
-    if not results:
-        print("❌ No results found in session, redirecting to index")
+    if not analysis_file or not os.path.exists(analysis_file):
+        print("❌ No analysis file found in session or file doesn't exist, redirecting to index")
+        print(f"   - Session keys available: {list(session.keys())}")
+        print(f"   - analysis_file key exists: {'analysis_file' in session}")
         flash('No analysis results found. Please upload and analyze a log file first.')
+        return redirect(url_for('main.index'))
+    
+    # Load results from the CSV file
+    try:
+        print(f"📂 Loading results from file: {analysis_file}")
+        results_df = pd.read_csv(analysis_file)
+        results = []
+        
+        for _, row in results_df.iterrows():
+            row_dict = {}
+            for col, value in row.items():
+                if pd.isna(value):
+                    row_dict[col] = None
+                elif hasattr(value, 'item'):  # Handle numpy types
+                    row_dict[col] = value.item()
+                elif col == 'is_anomaly':  # Handle anomaly flag specifically
+                    if isinstance(value, (int, float)):
+                        row_dict[col] = bool(value)
+                    elif isinstance(value, str):
+                        row_dict[col] = float(value) == 1.0
+                    else:
+                        row_dict[col] = bool(value)
+                elif isinstance(value, bool):
+                    row_dict[col] = bool(value)
+                else:
+                    row_dict[col] = str(value)
+            results.append(row_dict)
+        
+        print(f"✅ Loaded {len(results)} results from file")
+        
+    except Exception as e:
+        print(f"❌ Error loading results from file: {str(e)}")
+        flash('Error loading analysis results. Please try again.', 'error')
         return redirect(url_for('main.index'))
     
     # Ensure timestamps are strings to prevent template errors
@@ -386,7 +429,7 @@ def analyzed_logs():
     # Set cache headers to prevent caching issues
     response = make_response(render_template('analyzed_logs.html', 
                          results=paginated_results,
-                         csv_path=csv_path,
+                         csv_path=analysis_file,
                          kibana_url=kibana_url,
                          analysis_summary=analysis_summary,
                          pagination={
@@ -405,17 +448,61 @@ def analyzed_logs():
 @main.route('/download/<filename>')
 @login_required
 def download_csv(filename):
-    """Download the analysis results CSV file"""
+    """Download the analysis results CSV file with custom filename support"""
     try:
         file_path = os.path.join('uploads', filename)
         if os.path.exists(file_path):
-            return send_file(file_path, as_attachment=True, download_name=filename)
+            # Generate a more descriptive filename based on analysis data
+            analysis_summary = session.get('analysis_summary', {})
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            # Create a descriptive filename
+            if analysis_summary:
+                total_logs = analysis_summary.get('total_logs', 0)
+                total_anomalies = analysis_summary.get('total_anomalies', 0)
+                index_name = analysis_summary.get('index_name', 'analysis')
+                custom_filename = f"log_analysis_{index_name}_{total_logs}logs_{total_anomalies}anomalies_{timestamp}.csv"
+            else:
+                custom_filename = f"log_analysis_results_{timestamp}.csv"
+            
+            # Set headers to trigger file save dialog
+            response = send_file(
+                file_path, 
+                as_attachment=True, 
+                download_name=custom_filename,
+                mimetype='text/csv'
+            )
+            
+            # Add headers to prevent caching and ensure proper download behavior
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            response.headers['Content-Disposition'] = f'attachment; filename="{custom_filename}"'
+            
+            return response
         else:
-            flash('File not found.')
-            return redirect(url_for('main.index'))
+            return jsonify({'error': 'File not found'}), 404
     except Exception as e:
-        flash(f'Error downloading file: {str(e)}')
-        return redirect(url_for('main.index'))
+        return jsonify({'error': f'Error downloading file: {str(e)}'}), 500
+
+@main.route('/download-status/<filename>')
+@login_required
+def download_status(filename):
+    """Check if download file exists and return status"""
+    try:
+        file_path = os.path.join('uploads', filename)
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            return jsonify({
+                'status': 'available',
+                'filename': filename,
+                'size': file_size,
+                'size_mb': round(file_size / (1024 * 1024), 2)
+            })
+        else:
+            return jsonify({'status': 'not_found'}), 404
+    except Exception as e:
+        return jsonify({'error': f'Error checking file: {str(e)}'}), 500
 
 @main.route('/test-upload')
 def test_upload():

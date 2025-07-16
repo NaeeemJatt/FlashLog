@@ -102,6 +102,19 @@
             // This will be handled by the server-side authentication check
             // But we can add additional client-side checks if needed
         });
+
+        // Form submission handling - always redirect to separate page
+        document.getElementById('analyze-form').addEventListener('submit', function(e) {
+            // Don't prevent default - let the form submit normally to redirect
+            const submitButton = document.querySelector('button[type="submit"]');
+            
+            // Show loading state
+            submitButton.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Analyzing...';
+            submitButton.disabled = true;
+            submitButton.classList.add('btn-analyzing');
+            
+            // Let the form submit normally - it will redirect to the separate page
+        });
     </script>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -162,7 +175,7 @@
                                 Activity History
                             </a>
                             <hr class="my-2 border-gray-200 dark:border-gray-700">
-                            <a href="{{ url_for('auth.logout') }}" class="flex items-center px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                            <a href="{{ url_for('auth.logout') }}" class="flex items-center px-4 py-3 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                                 <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                                 </svg>
@@ -249,354 +262,40 @@
                 </div>
             </form>
         </section>
-
-        <!-- Analysis Results Section -->
-        <section id="results-section" class="results-section">
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1 pl-1">Analysis Results</h2>
-            <p class="text-gray-500 dark:text-gray-400 mb-6 pl-1">Results from your log analysis.</p>
-            
-            <!-- Results Summary -->
-            <div id="results-summary" class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="text-center">
-                        <div id="total-logs" class="text-2xl font-bold text-gray-900 dark:text-white">-</div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Total Log Entries</div>
-                    </div>
-                    <div class="text-center">
-                        <div id="total-anomalies" class="text-2xl font-bold text-red-500">-</div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Anomalies Detected</div>
-                    </div>
-                    <div class="text-center">
-                        <div id="success-rate" class="text-2xl font-bold text-green-500">-</div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Safe Logs</div>
-                    </div>
-                    <div class="text-center">
-                        <div id="index-name" class="text-2xl font-bold text-blue-500">-</div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Elasticsearch Index</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Results Table -->
-            <div class="bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-6">
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-100 dark:bg-gray-700">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">#</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Log Entry</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Timestamp</th>
-                            </tr>
-                        </thead>
-                        <tbody id="results-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            <!-- Results will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Pagination -->
-            <div id="pagination" class="mt-6 flex items-center justify-between">
-                <div class="text-sm text-gray-700 dark:text-gray-300">
-                    Showing <span id="showing-start">1</span> to <span id="showing-end">10</span> of <span id="total-results">0</span> results
-                </div>
-                <div class="flex items-center space-x-2">
-                    <button id="prev-page" class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Previous
-                    </button>
-                    <span id="page-info" class="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">Page 1</span>
-                    <button id="next-page" class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Next
-                    </button>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="mt-6 flex items-center justify-center space-x-4">
-                <a id="download-csv" href="#" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    Download CSV
-                </a>
-                <a id="kibana-link" href="#" target="_blank" class="inline-flex items-center px-4 py-2 border border-blue-300 dark:border-blue-600 text-sm font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors">
-                    View in Kibana
-                </a>
-            </div>
-        </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-white dark:bg-gray-900 mt-0">
-        <div class="max-w-7xl mx-auto px-6 py-6">
-            <div class="flex justify-between items-center">
-                <div class="text-sm text-gray-600 dark:text-gray-400">
-                    Created by <span class="font-semibold text-gray-900 dark:text-white">Naeem Jatt</span>
-                </div>
-                <div class="flex items-center gap-1">
-                    <a href="https://github.com/NaeeemJatt" target="_blank" 
-                       class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                        </svg>
-                        GitHub
-                    </a>
-                    <a href="https://naeemashiq.com/" target="_blank" 
-                       class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9m0-9c-5 0-9 4-9 9s4 9 9 9"/>
-                        </svg>
-                        Portfolio
-                    </a>
-                </div>
-            </div>
-        </div>
-    </footer>
-
     <script>
-    console.log('Script starting...');
-    
-    // Get DOM elements
-    const form = document.getElementById('analyze-form');
-    const btn = document.getElementById('analyze-btn');
-    const btnText = document.getElementById('analyze-btn-text');
-    const btnSpinner = document.getElementById('analyze-btn-spinner');
-    const buttonContainer = btn.parentElement;
-    const configSection = document.getElementById('config-section');
-    const resultsSection = document.getElementById('results-section');
-    const backToUploadBtn = document.getElementById('back-to-upload');
-
-    // Debug: Log all elements
-    console.log('DOM Elements found:', {
-        form: !!form,
-        btn: !!btn,
-        configSection: !!configSection,
-        resultsSection: !!resultsSection,
-        backToUploadBtn: !!backToUploadBtn
-    });
-
-    // Pagination variables
-    let allResults = [];
-    let currentPage = 1;
-    const logsPerPage = 10;
-
-    // Show results function
-    function showResults() {
-        return new Promise((resolve) => {
-            console.log('Showing results...');
-            
-            try {
-                // Show results section
-                resultsSection.classList.add('show');
-                backToUploadBtn.classList.remove('hidden');
-                
-                // Hide config section and button
-                configSection.classList.add('hide');
-                buttonContainer.style.display = 'none';
-                
-                setTimeout(() => {
-                    console.log('Results displayed');
-                    resolve();
-                }, 500);
-            } catch (error) {
-                console.error('Error in showResults:', error);
-                resolve(); // Continue anyway
+        // Prevent back button access after logout
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                // Page was loaded from back-forward cache
+                window.location.href = '/auth';
             }
         });
-    }
-
-    // Back to upload button functionality
-    if (backToUploadBtn) {
-        backToUploadBtn.addEventListener('click', function() {
-            // Reset pagination
-            allResults = [];
-            currentPage = 1;
-            
-            // Show config section and hide results
-            configSection.classList.remove('hide');
-            resultsSection.classList.remove('show');
-            backToUploadBtn.classList.add('hidden');
-            buttonContainer.style.display = 'flex'; // Show the button container again
-            
-            // Reset form
-            form.reset();
-            
-            // Reset button state
-            btn.disabled = false;
-            btnText.textContent = 'Upload & Analyze Logs';
-            btnSpinner.classList.add('hidden');
-        });
-    }
-
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            console.log('Form submit event triggered');
-            e.preventDefault(); // Stop the normal POST/refresh
-
-            // Validation
-            const fileInput = document.getElementById('logfile');
-            if (!fileInput.files || fileInput.files.length === 0) {
-                alert('Please select a file to upload.');
-                return;
-            }
-
-            console.log('File selected:', fileInput.files[0].name);
-
-            // Show button animation
-            btn.classList.add('btn-analyzing');
-            btn.disabled = true;
-            btnText.textContent = '🚀 Analyzing...';
-            btnSpinner.classList.remove('hidden');
-
-            // Build FormData
-            const body = new FormData(form);
-
-            // Send the request
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', form.action);
-            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); // Mark as AJAX request
-            xhr.responseType = 'json';
-            xhr.onload = async () => {
-                console.log('XHR response received:', xhr.status);
-
-                if (xhr.status === 200) {
-                    const data = xhr.response;
-                    console.log('Response data:', data);
-                    
-                    // Debug: Check anomaly distribution in received data
-                    const anomalyCount = data.results.filter(r => Number(r.is_anomaly) === 1).length;
-                    const safeCount = data.results.length - anomalyCount;
-                    console.log(`🔍 Frontend received: ${data.results.length} total logs`);
-                    console.log(`🔍 Frontend calculated: ${anomalyCount} anomalies, ${safeCount} safe`);
-                    console.log(`🔍 Backend reported: ${data.summary.total_anomalies} anomalies`);
-                    
-                    // Store all results for pagination
-                    allResults = data.results;
-                    currentPage = 1;
-                    
-                    // Update summary
-                    document.getElementById('total-logs').textContent = data.summary.total_logs;
-                    document.getElementById('total-anomalies').textContent = data.summary.total_anomalies;
-                    document.getElementById('success-rate').textContent = data.summary.total_logs - data.summary.total_anomalies;
-                    document.getElementById('index-name').textContent = data.summary.index_name;
-                    
-                    // Update download and kibana links
-                    document.getElementById('download-csv').href = data.csv_path || '#';
-                    document.getElementById('kibana-link').href = data.kibana_url || '#';
-                    
-                    // Remove button animation and show results directly
-                    console.log('🔄 Analysis complete, removing button animation...');
-                    btn.classList.remove('btn-analyzing');
-                    btn.disabled = false;
-                    btnText.textContent = '🚀 Upload & Analyze Logs';
-                    btnSpinner.classList.add('hidden');
-                    displayResultsPage(1);
-                    await showResults();
-                    
-                    // Scroll to results table
-                    const resultsTable = document.querySelector('#results-section .bg-\\[\\#f8f9fa\\]');
-                    if (resultsTable) {
-                        resultsTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                    
-                    console.log('✅ All done!');
-                    
-                } else {
-                    console.error('Error response:', xhr.responseText);
-                    alert('Error during analysis. Please try again.');
-                    btn.classList.remove('btn-analyzing');
-                    btn.disabled = false;
-                    btnText.textContent = '🚀 Upload & Analyze Logs';
-                    btnSpinner.classList.add('hidden');
-                }
-            };
-            xhr.onerror = () => {
-                console.error('XHR error occurred');
-                alert('Upload failed. Please check your connection and try again.');
-                btn.classList.remove('btn-analyzing');
-                btn.disabled = false;
-                btnText.textContent = '🚀 Upload & Analyze Logs';
-                btnSpinner.classList.add('hidden');
-            };
-            xhr.send(body);
-        });
-    } else {
-        console.error('Form element not found!');
-    }
-
-    // Pagination functions
-    function displayResultsPage(page) {
-        const startIndex = (page - 1) * logsPerPage;
-        const endIndex = startIndex + logsPerPage;
-        const pageResults = allResults.slice(startIndex, endIndex);
         
-        console.log('Displaying page', page, 'with', pageResults.length, 'items');
-        
-        const tableBody = document.getElementById('results-table-body');
-        tableBody.innerHTML = '';
-        
-        pageResults.forEach((result, index) => {
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
-            
-            // Debug: Log the anomaly value for each result
-            console.log(`Result ${startIndex + index + 1}: is_anomaly = ${result.is_anomaly}, type = ${typeof result.is_anomaly}`);
-            
-            // Fix: Proper boolean handling for numeric values (1.0 = true, 0.0 = false)
-            const isAnomaly = Number(result.is_anomaly) == 1;
-            
-            const anomalyClass = isAnomaly ? 
-                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-            
-            const anomalyText = isAnomaly ? '🚨 Anomaly' : '✅ Safe';
-            const timestamp = result.timestamp ? result.timestamp.substring(0, 19) : 'N/A';
-            
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${startIndex + index + 1}</td>
-                <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                    <div class="max-w-md break-words">${result.logline || 'N/A'}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="${anomalyClass}">${anomalyText}</span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${timestamp}</td>
-            `;
-            
-            tableBody.appendChild(row);
+        // Prevent back button navigation
+        window.addEventListener('beforeunload', function() {
+            // Clear any cached data
+            sessionStorage.clear();
         });
         
-        // Update pagination info
-        updatePaginationInfo(page);
-    }
+        // Check if user is authenticated on page load
+        window.addEventListener('load', function() {
+            // This will be handled by the server-side authentication check
+            // But we can add additional client-side checks if needed
+        });
 
-    function updatePaginationInfo(page) {
-        const totalPages = Math.ceil(allResults.length / logsPerPage);
-        const startIndex = (page - 1) * logsPerPage + 1;
-        const endIndex = Math.min(page * logsPerPage, allResults.length);
-        
-        document.getElementById('showing-start').textContent = startIndex;
-        document.getElementById('showing-end').textContent = endIndex;
-        document.getElementById('total-results').textContent = allResults.length;
-        document.getElementById('page-info').textContent = `Page ${page} of ${totalPages}`;
-        
-        // Update button states
-        document.getElementById('prev-page').disabled = page <= 1;
-        document.getElementById('next-page').disabled = page >= totalPages;
-    }
-
-    // Pagination event listeners
-    document.getElementById('prev-page').addEventListener('click', function() {
-        if (currentPage > 1) {
-            currentPage--;
-            displayResultsPage(currentPage);
-        }
-    });
-
-    document.getElementById('next-page').addEventListener('click', function() {
-        const totalPages = Math.ceil(allResults.length / logsPerPage);
-        if (currentPage < totalPages) {
-            currentPage++;
-            displayResultsPage(currentPage);
-        }
+        // Form submission handling - always redirect to separate page
+        document.getElementById('analyze-form').addEventListener('submit', function(e) {
+            // Don't prevent default - let the form submit normally to redirect
+            const submitButton = document.querySelector('button[type="submit"]');
+            
+            // Show loading state
+            submitButton.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Analyzing...';
+            submitButton.disabled = true;
+            submitButton.classList.add('btn-analyzing');
+            
+            // Let the form submit normally - it will redirect to the separate page
     });
     </script>
 </body>

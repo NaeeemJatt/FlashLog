@@ -137,7 +137,7 @@ class LogAnomalyDetectionFixed:
         else:
 
             print("🔧 Using deterministic anomaly detection approach...")
-            print(f"🔍 DEBUG: Algorithm name: {self.config.anomaly_detection_config.algo_name}")
+            print(f"DEBUG: Algorithm name: {self.config.anomaly_detection_config.algo_name}")
             
             try:
 
@@ -149,8 +149,8 @@ class LogAnomalyDetectionFixed:
                 
                 log_df['log_hash'] = log_df['logline'].apply(lambda x: hash(str(x)))
                 
-                print(f"🔍 DEBUG: Total logs: {len(log_df)}")
-                print(f"🔍 DEBUG: Unique log hashes: {log_df['log_hash'].nunique()}")
+                print(f"DEBUG: Total logs: {len(log_df)}")
+                print(f"DEBUG: Unique log hashes: {log_df['log_hash'].nunique()}")
                 
                 grouped_by_hash = log_df.groupby('log_hash')
                 
@@ -163,7 +163,7 @@ class LogAnomalyDetectionFixed:
                     unique_logs.append(representative_log['parsed_logline'])
                     hash_to_indices[log_hash] = group['original_index'].tolist()
                 
-                print(f"🔍 DEBUG: Processing {len(unique_logs)} unique log types")
+                print(f"DEBUG: Processing {len(unique_logs)} unique log types")
                 
                 vectorizor = LogVectorizer(self.config.log_vectorizer_config)
 
@@ -176,13 +176,13 @@ class LogAnomalyDetectionFixed:
                     index=range(len(unique_logs))
                 )
                 
-                print(f"🔍 DEBUG: Feature matrix shape: {feature_df.shape}")
+                print(f"DEBUG: Feature matrix shape: {feature_df.shape}")
                 
                 anomaly_detector = AnomalyDetector(self.config.anomaly_detection_config)
                 anomaly_detector.fit(feature_df)
                 anomaly_scores = anomaly_detector.predict(feature_df)["anom_score"]
                 
-                print(f"🔍 DEBUG: Anomaly scores range: {anomaly_scores.min():.4f} to {anomaly_scores.max():.4f}")
+                print(f"DEBUG: Anomaly scores range: {anomaly_scores.min():.4f} to {anomaly_scores.max():.4f}")
                 
                 if self.config.anomaly_detection_config.algo_name == "one_class_svm":
 
@@ -193,8 +193,8 @@ class LogAnomalyDetectionFixed:
                     threshold = anomaly_scores.quantile(0.95)
                     anomaly_mask = anomaly_scores > threshold
                 
-                print(f"🔍 DEBUG: Threshold: {threshold:.4f}")
-                print(f"🔍 DEBUG: Anomalous unique logs: {anomaly_mask.sum()}")
+                print(f"DEBUG: Threshold: {threshold:.4f}")
+                print(f"DEBUG: Anomalous unique logs: {anomaly_mask.sum()}")
                 
                 log_hash_to_anomaly = {}
                 for i, (log_hash, indices) in enumerate(hash_to_indices.items()):
@@ -223,14 +223,14 @@ class LogAnomalyDetectionFixed:
                     if log_content in log_content_to_anomaly:
                         if log_content_to_anomaly[log_content] != is_anomaly:
                             inconsistencies += 1
-                            print(f"🚨 INCONSISTENCY: Log '{log_content[:100]}...' has different classifications!")
+                            print(f"INCONSISTENCY: Log '{log_content[:100]}...' has different classifications!")
                     else:
                         log_content_to_anomaly[log_content] = is_anomaly
                 
-                print(f"🔍 DEBUG: Total logs: {len(df)}")
-                print(f"🔍 DEBUG: Unique log contents: {len(log_content_to_anomaly)}")
-                print(f"🔍 DEBUG: Anomalies detected: {df['is_anomaly'].sum()}")
-                print(f"🔍 DEBUG: Inconsistencies found: {inconsistencies}")
+                print(f"DEBUG: Total logs: {len(df)}")
+                print(f"DEBUG: Unique log contents: {len(log_content_to_anomaly)}")
+                print(f"DEBUG: Anomalies detected: {df['is_anomaly'].sum()}")
+                print(f"DEBUG: Inconsistencies found: {inconsistencies}")
                 
                 if inconsistencies == 0:
                     print("✅ SUCCESS: All identical logs classified consistently!")

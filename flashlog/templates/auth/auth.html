@@ -20,6 +20,18 @@
             from { opacity: 0; transform: translateX(30px); }
             to { opacity: 1; transform: translateX(0); }
         }
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        @keyframes blink {
+            0%, 50% { border-color: transparent; }
+            51%, 100% { border-color: white; }
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
         .slide-in-left {
             animation: slideInLeft 0.8s ease-out;
         }
@@ -41,80 +53,82 @@
             background: rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+        .typing-animation {
+            overflow: hidden;
+            border-right: 3px solid white;
+            white-space: nowrap;
+            min-height: 1.2em;
+            display: inline-block;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 25%, #10b981 50%, #6b7280 75%, #3b82f6 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+        .seamless-layout {
+            background: linear-gradient(90deg, transparent 0%, transparent 49%, transparent 51%, transparent 100%);
+        }
+        .form-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .input-field {
+            background: rgba(255, 255, 255, 0.9) !important;
+            color: #1f2937 !important;
+            border-color: rgba(156, 163, 175, 0.5) !important;
+        }
+        .input-field::placeholder {
+            color: #6b7280 !important;
+        }
+        .input-field:focus {
+            background: rgba(255, 255, 255, 1) !important;
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+        .label-text {
+            color: #374151 !important;
+            font-weight: 500 !important;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+<body class="min-h-screen gradient-bg">
     <div class="min-h-screen flex">
         <!-- Left Panel - Logo and Branding -->
-        <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-green-500 via-emerald-600 to-teal-700 relative overflow-hidden">
-            <div class="absolute inset-0 bg-black opacity-20"></div>
+        <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+            <div class="absolute inset-0 bg-black opacity-10"></div>
             <div class="relative z-10 flex flex-col justify-center items-center text-white px-12 slide-in-left">
                 <!-- Logo/Brand Section -->
-                <div class="text-center mb-8">
-                    <div class="text-6xl font-bold mb-4 tracking-tight">
+                <div class="text-center">
+                    <div class="text-6xl font-bold mb-4 tracking-tight typing-animation" id="typing-text">
                         FlashLog
                     </div>
                     <div class="text-xl font-light opacity-90 mb-6">
                         AI-Powered Log Analysis & Anomaly Detection
                     </div>
-                    <div class="w-24 h-1 bg-white mx-auto mb-8"></div>
-                </div>
-                
-                <!-- Features List -->
-                <div class="space-y-6 max-w-md">
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-lg">Advanced AI Detection</h3>
-                            <p class="text-green-100 text-sm">State-of-the-art anomaly detection algorithms</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-lg">Real-time Processing</h3>
-                            <p class="text-green-100 text-sm">Instant log analysis and insights</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-lg">Comprehensive Analytics</h3>
-                            <p class="text-green-100 text-sm">Detailed reports and visualizations</p>
-                        </div>
-                    </div>
                 </div>
                 
                 <!-- Footer -->
                 <div class="absolute bottom-8 text-center">
-                    <p class="text-green-100 text-sm">© 2024 FlashLog. All rights reserved.</p>
+                    <p class="text-white text-sm opacity-80">© 2024 FlashLog. All rights reserved.</p>
                 </div>
             </div>
         </div>
         
         <!-- Right Panel - Authentication Forms -->
         <div class="w-full lg:w-1/2 flex items-center justify-center px-8 py-12">
-            <div class="w-full max-w-md slide-in-right">
+            <div class="w-full max-w-md slide-in-right form-wrapper rounded-xl shadow-2xl p-8">
                 <!-- Form Toggle Buttons -->
-                <div class="flex mb-8 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                    <button id="login-tab" class="flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm">
+                <div class="flex mb-8 bg-gray-200 rounded-lg p-1">
+                    <button id="login-tab" class="flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 bg-white text-gray-900 shadow-sm">
                         Sign In
                     </button>
-                    <button id="register-tab" class="flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                    <button id="register-tab" class="flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900">
                         Sign Up
                     </button>
                 </div>
@@ -123,7 +137,7 @@
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div class="flash-message mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200 dark:bg-red-900 dark:text-red-200{% else %}bg-green-100 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-200{% endif %} transition-opacity duration-500">
+                            <div class="flash-message mb-6 p-4 rounded-lg {% if category == 'error' %}bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900 dark:text-blue-200{% else %}bg-green-100 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-200{% endif %} transition-opacity duration-500">
                                 {{ message }}
                             </div>
                         {% endfor %}
@@ -135,33 +149,33 @@
                     <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-6">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div>
-                            <label for="login-username" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                            <label for="login-username" class="block text-sm font-medium label-text mb-2">
                                 Username
                             </label>
                             <input type="text" 
                                    id="login-username" 
                                    name="username" 
                                    required
-                                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg outline-none transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:border-green-500 dark:focus:border-green-400"
+                                   class="w-full px-4 py-3 border rounded-lg outline-none transition-all duration-200 input-field"
                                    placeholder="Enter your username">
                         </div>
                         <div>
-                            <label for="login-password" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                            <label for="login-password" class="block text-sm font-medium label-text mb-2">
                                 Password
                             </label>
                             <input type="password" 
                                    id="login-password" 
                                    name="password" 
                                    required
-                                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg outline-none transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:border-green-500 dark:focus:border-green-400"
+                                   class="w-full px-4 py-3 border rounded-lg outline-none transition-all duration-200 input-field"
                                    placeholder="Enter your password">
                         </div>
                         <div class="flex items-center justify-between">
                             <label class="flex items-center">
                                 <input type="checkbox" 
                                        name="remember" 
-                                       class="h-4 w-4 text-green-600 border-gray-300 dark:border-gray-600 rounded outline-none">
-                                <span class="ml-2 text-sm text-gray-600 dark:text-gray-300">Remember me</span>
+                                       class="h-4 w-4 text-green-600 border-gray-400 rounded outline-none">
+                                <span class="ml-2 text-sm text-gray-700">Remember me</span>
                             </label>
                         </div>
                         <button type="submit" 
@@ -176,7 +190,7 @@
                     <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-6" id="registerForm">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div>
-                            <label for="register-username" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                            <label for="register-username" class="block text-sm font-medium label-text mb-2">
                                 Username
                             </label>
                             <input type="text" 
@@ -184,23 +198,23 @@
                                    name="username" 
                                    required
                                    minlength="3"
-                                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg outline-none transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:border-green-500 dark:focus:border-green-400"
+                                   class="w-full px-4 py-3 border rounded-lg outline-none transition-all duration-200 input-field"
                                    placeholder="Choose a username">
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum 3 characters</p>
+                            <p class="text-xs text-gray-600 mt-1">Minimum 3 characters</p>
                         </div>
                         <div>
-                            <label for="register-email" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                            <label for="register-email" class="block text-sm font-medium label-text mb-2">
                                 Email Address
                             </label>
                             <input type="email" 
                                    id="register-email" 
                                    name="email" 
                                    required
-                                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg outline-none transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:border-green-500 dark:focus:border-green-400"
+                                   class="w-full px-4 py-3 border rounded-lg outline-none transition-all duration-200 input-field"
                                    placeholder="Enter your email">
                         </div>
                         <div>
-                            <label for="register-password" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                            <label for="register-password" class="block text-sm font-medium label-text mb-2">
                                 Password
                             </label>
                             <input type="password" 
@@ -208,31 +222,31 @@
                                    name="password" 
                                    required
                                    minlength="6"
-                                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg outline-none transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:border-green-500 dark:focus:border-green-400"
+                                   class="w-full px-4 py-3 border rounded-lg outline-none transition-all duration-200 input-field"
                                    placeholder="Create a password">
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum 6 characters</p>
+                            <p class="text-xs text-gray-600 mt-1">Minimum 6 characters</p>
                         </div>
                         <div>
-                            <label for="register-confirm-password" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                            <label for="register-confirm-password" class="block text-sm font-medium label-text mb-2">
                                 Confirm Password
                             </label>
                             <input type="password" 
                                    id="register-confirm-password" 
                                    name="confirm_password" 
                                    required
-                                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg outline-none transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:border-green-500 dark:focus:border-green-400"
+                                   class="w-full px-4 py-3 border rounded-lg outline-none transition-all duration-200 input-field"
                                    placeholder="Confirm your password">
                         </div>
                         <div class="flex items-start">
                             <input type="checkbox" 
                                    id="terms" 
                                    required
-                                   class="h-4 w-4 text-green-600 border-gray-300 dark:border-gray-600 rounded outline-none mt-1">
-                            <label for="terms" class="ml-2 text-sm text-gray-600 dark:text-gray-300">
+                                   class="h-4 w-4 text-green-600 border-gray-400 rounded outline-none mt-1">
+                            <label for="terms" class="ml-2 text-sm text-gray-700">
                                 I agree to the 
-                                <a href="#" class="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">Terms of Service</a> 
+                                <a href="#" class="text-green-600 hover:text-green-700">Terms of Service</a> 
                                 and 
-                                <a href="#" class="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">Privacy Policy</a>
+                                <a href="#" class="text-green-600 hover:text-green-700">Privacy Policy</a>
                             </label>
                         </div>
                         <button type="submit" 
@@ -246,6 +260,49 @@
     </div>
 
     <script>
+        // Typing animation functionality
+        const typingText = document.getElementById('typing-text');
+        const phrases = ['FlashLog', 'Log Analyzer', 'Anomaly Detector'];
+        let currentPhraseIndex = 0;
+        let currentCharIndex = 0;
+        let isDeleting = false;
+        let typingSpeed = 150;
+        let deletingSpeed = 100;
+        let pauseTime = 2000;
+
+        function typeText() {
+            const currentPhrase = phrases[currentPhraseIndex];
+            
+            if (isDeleting) {
+                // Deleting text
+                typingText.textContent = currentPhrase.substring(0, currentCharIndex - 1);
+                currentCharIndex--;
+                typingSpeed = deletingSpeed;
+            } else {
+                // Typing text
+                typingText.textContent = currentPhrase.substring(0, currentCharIndex + 1);
+                currentCharIndex++;
+                typingSpeed = 150;
+            }
+
+            // Check if we've finished typing the current phrase
+            if (!isDeleting && currentCharIndex === currentPhrase.length) {
+                // Pause at the end of typing
+                typingSpeed = pauseTime;
+                isDeleting = true;
+            } else if (isDeleting && currentCharIndex === 0) {
+                // Finished deleting, move to next phrase
+                isDeleting = false;
+                currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+                typingSpeed = 500; // Pause before starting next phrase
+            }
+
+            setTimeout(typeText, typingSpeed);
+        }
+
+        // Start the typing animation
+        setTimeout(typeText, 1000);
+
         // Form toggle functionality
         const loginTab = document.getElementById('login-tab');
         const registerTab = document.getElementById('register-tab');

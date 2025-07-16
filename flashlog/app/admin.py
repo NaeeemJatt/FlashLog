@@ -366,6 +366,141 @@ def edit_user(user_id):
     
     return render_template('admin/edit_user.html', user=user)
 
+@admin.route('/activities')
+@login_required
+@admin_required
+def activities():
+    """Admin activities view - shows all user activities"""
+    from datetime import datetime
+    
+    print("🔍 Admin activities route called")
+    
+    # Get filter parameters
+    activity_type = request.args.get('activity_type', '')
+    status = request.args.get('status', '')
+    user_id = request.args.get('user_id', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+    
+    conn = get_db_connection()
+    
+    # First, let's check if the user_activities table exists and has data
+    try:
+        table_check = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_activities'").fetchone()
+        if not table_check:
+            print("❌ user_activities table does not exist!")
+            conn.close()
+            return render_template('admin/activities.html', 
+                                 activities=[],
+                                 activity_types=[],
+                                 statuses=[],
+                                 users=[],
+                                 current_page=1,
+                                 total_pages=1,
+                                 total_activities=0,
+                                 filters={'activity_type': '', 'status': '', 'user_id': ''})
+        
+        # Check total activities
+        total_check = conn.execute("SELECT COUNT(*) as count FROM user_activities").fetchone()
+        print(f"📊 Total activities in database: {total_check['count']}")
+        
+        if total_check['count'] == 0:
+            print("⚠️ No activities found in database")
+            conn.close()
+            return render_template('admin/activities.html', 
+                                 activities=[],
+                                 activity_types=[],
+                                 statuses=[],
+                                 users=[],
+                                 current_page=1,
+                                 total_pages=1,
+                                 total_activities=0,
+                                 filters={'activity_type': '', 'status': '', 'user_id': ''})
+        
+    except Exception as e:
+        print(f"❌ Error checking database: {str(e)}")
+        conn.close()
+        return render_template('admin/activities.html', 
+                             activities=[],
+                             activity_types=[],
+                             statuses=[],
+                             users=[],
+                             current_page=1,
+                             total_pages=1,
+                             total_activities=0,
+                             filters={'activity_type': '', 'status': '', 'user_id': ''})
+    
+    # Build the query with filters
+    query = '''
+        SELECT ua.*, u.username 
+        FROM user_activities ua 
+        LEFT JOIN users u ON ua.user_id = u.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if activity_type:
+        query += ' AND ua.activity_type = ?'
+        params.append(activity_type)
+    
+    if status:
+        query += ' AND ua.status = ?'
+        params.append(status)
+    
+    if user_id:
+        query += ' AND ua.user_id = ?'
+        params.append(user_id)
+    
+    # Get total count for pagination
+    count_query = f"SELECT COUNT(*) as count FROM ({query})"
+    total_activities = conn.execute(count_query, params).fetchone()['count']
+    print(f"📊 Activities matching filters: {total_activities}")
+    
+    # Add ordering and pagination
+    query += ' ORDER BY ua.created_at DESC LIMIT ? OFFSET ?'
+    params.extend([per_page, (page - 1) * per_page])
+    
+    activities_raw = conn.execute(query, params).fetchall()
+    print(f"📊 Retrieved {len(activities_raw)} activities for display")
+    
+    # Get unique activity types and statuses for filter dropdowns
+    activity_types = conn.execute('SELECT DISTINCT activity_type FROM user_activities ORDER BY activity_type').fetchall()
+    statuses = conn.execute('SELECT DISTINCT status FROM user_activities ORDER BY status').fetchall()
+    users = conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
+    
+    conn.close()
+    
+    # Convert activities to list of dicts for template
+    activities_list = []
+    for activity in activities_raw:
+        activity_dict = dict(activity)
+        
+        # Convert created_at string to datetime if it exists
+        if activity_dict['created_at']:
+            try:
+                activity_dict['created_at'] = datetime.fromisoformat(activity_dict['created_at'].replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                activity_dict['created_at'] = None
+        
+        activities_list.append(activity_dict)
+    
+    # Calculate pagination
+    total_pages = (total_activities + per_page - 1) // per_page
+    
+    return render_template('admin/activities.html', 
+                         activities=activities_list,
+                         activity_types=activity_types,
+                         statuses=statuses,
+                         users=users,
+                         current_page=page,
+                         total_pages=total_pages,
+                         total_activities=total_activities,
+                         filters={
+                             'activity_type': activity_type,
+                             'status': status,
+                             'user_id': user_id
+                         })
+
 @admin.route('/users/<int:user_id>/reset-password', methods=['POST'])
 @login_required
 @admin_required

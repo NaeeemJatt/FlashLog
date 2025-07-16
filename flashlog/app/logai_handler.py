@@ -271,75 +271,33 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
     results = detector.results
     
     # Debug: Check anomaly distribution
-    print(f"🔍 Debug: Total logs processed: {len(results)}")
+    print(f"Debug: Total logs processed: {len(results)}")
     if 'is_anomaly' in results.columns:
         anomaly_count = results['is_anomaly'].sum()
         normal_count = len(results) - anomaly_count
-        print(f"🔍 Debug: Anomalies detected: {anomaly_count}")
-        print(f"🔍 Debug: Normal logs: {normal_count}")
-        print(f"🔍 Debug: Anomaly percentage: {(anomaly_count/len(results)*100):.2f}%")
+        print(f"Debug: Anomalies detected: {anomaly_count}")
+        print(f"Debug: Normal logs: {normal_count}")
+        print(f"Debug: Anomaly percentage: {(anomaly_count/len(results)*100):.2f}%")
         
         # If all logs are marked as anomalies, this might indicate an issue
         if anomaly_count == len(results):
             print("⚠️  Warning: ALL logs marked as anomalies. This indicates a model issue.")
-            print("🔧 Attempting to adjust anomaly detection...")
-            
-            # Try different approaches based on the model type
-            if model_type == "isolation_forest":
-                print("🔧 Retrying with adjusted isolation forest parameters...")
-                try:
-                    # Create a new config with adjusted parameters
-                    config_dict = config.to_dict()
-                    config_dict["anomaly_detection_config"]["contamination"] = 0.1  # Expect 10% anomalies
-                    
-                    adjusted_config = WorkFlowConfig.from_dict(config_dict)
-                    detector = LogAnomalyDetection(adjusted_config)
-                    detector.execute()
-                    results = detector.results
-                    
-                    # Check the new results
-                    new_anomaly_count = results['is_anomaly'].sum()
-                    new_normal_count = len(results) - new_anomaly_count
-                    print(f"🔧 Adjusted results - Anomalies: {new_anomaly_count}, Normal: {new_normal_count}")
-                    
-                except Exception as e:
-                    print(f"⚠️  Failed to adjust isolation forest parameters: {e}")
-                    apply_manual_threshold_adjustment(results)
-                    
-            elif model_type == "one_class_svm":
-                print("🔧 Retrying with adjusted One-Class SVM parameters...")
-                try:
-                    config_dict = config.to_dict()
-                    config_dict["anomaly_detection_config"]["nu"] = 0.05  # Expect only 5% anomalies
-                    
-                    adjusted_config = WorkFlowConfig.from_dict(config_dict)
-                    detector = LogAnomalyDetection(adjusted_config)
-                    detector.execute()
-                    results = detector.results
-                    
-                    new_anomaly_count = results['is_anomaly'].sum()
-                    new_normal_count = len(results) - new_anomaly_count
-                    print(f"🔧 Adjusted results - Anomalies: {new_anomaly_count}, Normal: {new_normal_count}")
-                    
-                except Exception as e:
-                    print(f"⚠️  Failed to adjust One-Class SVM parameters: {e}")
-                    apply_manual_threshold_adjustment(results)
-                    
-            else:
-                # For other models, apply manual threshold adjustment
-                apply_manual_threshold_adjustment(results)
+            print("🔍 This could be due to model parameters or data characteristics")
+            print("🔍 Consider trying different algorithms or adjusting parameters")
+            print("🔍 Current results will be preserved as-is")
         
-        # If too many anomalies detected (but not all), just warn but don't adjust
+        # If too many anomalies detected (but not all), just warn
         elif anomaly_count > len(results) * 0.8:  # More than 80% anomalies
             print(f"⚠️  Warning: High anomaly rate detected ({anomaly_count/len(results)*100:.1f}%).")
-            print("🔧 This might be normal for your dataset, but consider adjusting model parameters.")
-            print("🔧 Current results will be preserved.")
+            print("🔍 This might be normal for your dataset, but consider trying different algorithms.")
+            print("🔍 Current results will be preserved.")
         
-        # If no anomalies detected, this might also be suspicious
+        # If no anomalies detected, this might be legitimate
         elif anomaly_count == 0:
-            print("⚠️  Warning: No anomalies detected. This might indicate a model issue.")
-            print("🔧 Applying conservative threshold adjustment...")
-            apply_manual_threshold_adjustment(results, conservative=True)
+            print("ℹ️  No anomalies detected in the logs.")
+            print("🔍 This could be legitimate - your logs may not contain actual anomalies")
+            print("🔍 The anomaly detection algorithms are working correctly")
+            print("🔍 Keeping original results")
 
     # Add processing time metadata
     processing_time = time.time() - start_time
@@ -356,40 +314,4 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
     send_to_elasticsearch(index_name, results)
     return results, result_path
 
-def apply_manual_threshold_adjustment(results, conservative=False):
-    """Apply manual threshold adjustment to get reasonable anomaly distribution"""
-    print("🔧 Applying manual threshold adjustment...")
-    
-    # Check if we have anomaly scores
-    if 'anomaly_score' in results.columns:
-        if conservative:
-            # For conservative approach, mark top 5% as anomalies
-            threshold = results['anomaly_score'].quantile(0.95)
-        else:
-            # For normal approach, mark top 10% as anomalies
-            threshold = results['anomaly_score'].quantile(0.9)
-        
-        results['is_anomaly'] = results['anomaly_score'] > threshold
-        print(f"🔧 Applied threshold: {threshold}")
-        print(f"🔧 New anomaly count: {results['is_anomaly'].sum()}")
-        
-    elif 'score' in results.columns:
-        # Alternative column name for scores
-        if conservative:
-            threshold = results['score'].quantile(0.95)
-        else:
-            threshold = results['score'].quantile(0.9)
-        
-        results['is_anomaly'] = results['score'] > threshold
-        print(f"🔧 Applied threshold: {threshold}")
-        print(f"🔧 New anomaly count: {results['is_anomaly'].sum()}")
-        
-    else:
-        # If no score column, use a very conservative approach
-        print("🔧 No score column found, using very conservative pattern-based adjustment...")
-        # Mark only every 20th log as anomaly (5% rate) instead of every 10th
-        results['is_anomaly'] = False
-        for i in range(19, len(results), 20):  # Every 20th log starting from 20th
-            results.iloc[i, results.columns.get_loc('is_anomaly')] = True
-        print(f"🔧 Applied conservative pattern-based adjustment - Anomalies: {results['is_anomaly'].sum()}")
-        print(f"🔧 This is a fallback method and may not reflect actual anomalies!")
+

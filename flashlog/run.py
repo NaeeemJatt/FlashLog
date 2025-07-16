@@ -8,6 +8,6 @@ app = create_app()
 app.template_folder = template_dir
 
 if __name__ == '__main__':
-    # Disable debug mode in production
-    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    # Enable debug mode for development (auto-reload)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     app.run(debug=debug_mode, host='127.0.0.1', port=5000)

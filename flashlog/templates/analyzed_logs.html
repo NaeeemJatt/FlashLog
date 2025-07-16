@@ -92,7 +92,7 @@
                         <div class="text-sm text-gray-600 dark:text-gray-400">Total Log Entries</div>
                     </div>
                     <div class="text-center">
-                        <div class="text-2xl font-bold text-red-500">{{ analysis_summary.total_anomalies }}</div>
+                        <div class="text-2xl font-bold text-blue-500">{{ analysis_summary.total_anomalies }}</div>
                         <div class="text-sm text-gray-600 dark:text-gray-400">Anomalies Detected</div>
                     </div>
                     <div class="text-center">
@@ -193,6 +193,29 @@
                     {% endif %}
                 {% endfor %}
 
+                <!-- Direct Page Input -->
+                <div class="flex items-center space-x-2 ml-4" 
+                     data-total-pages="{{ pagination.total_pages }}" 
+                     data-current-page="{{ pagination.page }}" 
+                     data-base-url="{{ url_for('main.analyzed_logs') }}">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">Go to:</span>
+                    <div class="flex items-center space-x-1">
+                        <input type="number" 
+                               id="pageInput" 
+                               min="1" 
+                               max="{{ pagination.total_pages }}" 
+                               placeholder="{{ pagination.page }}"
+                               class="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                               onkeypress="handlePageInputKeyPress(event)"
+                               title="Enter page number (1-{{ pagination.total_pages }})">
+                        <button onclick="goToPage()" 
+                                class="inline-flex items-center px-3 py-1 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                title="Go to page">
+                            Go
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Next Page -->
                 {% if pagination.page < pagination.total_pages %}
                 <a href="{{ url_for('main.analyzed_logs', page=pagination.page+1) }}" 
@@ -207,23 +230,69 @@
             </div>
             {% endif %}
 
-            <!-- Download and Kibana Links -->
-            {% if csv_path %}
-            <div class="mt-6 flex gap-4 zoom-in-delay-4">
-                <a href="{{ url_for('main.download_csv', filename=csv_path.split('/')[-1]) }}" 
-                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                    📥 Download Results CSV
-                </a>
-                {% if kibana_url %}
-                <a href="{{ kibana_url }}" target="_blank" 
-                   class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                    🔍 View in Kibana
-                </a>
-                {% endif %}
-            </div>
-            {% endif %}
+
         </section>
     </main>
+
+    <!-- Pagination JavaScript -->
+    <script>
+        function goToPage() {
+            const pageInput = document.getElementById('pageInput');
+            const pageInputContainer = pageInput.closest('[data-total-pages]');
+            const pageNumber = parseInt(pageInput.value);
+            const totalPages = parseInt(pageInputContainer.dataset.totalPages);
+            const baseUrl = pageInputContainer.dataset.baseUrl;
+            
+            // Validate input
+            if (isNaN(pageNumber) || pageNumber < 1 || pageNumber > totalPages) {
+                showPaginationError('Please enter a valid page number between 1 and ' + totalPages);
+                return;
+            }
+            
+            // Navigate to the page
+            window.location.href = baseUrl + '?page=' + pageNumber;
+        }
+        
+        function handlePageInputKeyPress(event) {
+            if (event.key === 'Enter') {
+                goToPage();
+            }
+        }
+        
+        function showPaginationError(message) {
+            // Create error notification
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300';
+            errorDiv.innerHTML = '<div class="flex items-center"><svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg><span>' + message + '</span></div>';
+            
+            document.body.appendChild(errorDiv);
+            
+            // Show notification
+            setTimeout(function() {
+                errorDiv.classList.remove('translate-x-full');
+                errorDiv.classList.add('translate-x-0');
+            }, 100);
+            
+            // Hide notification after 3 seconds
+            setTimeout(function() {
+                errorDiv.classList.remove('translate-x-0');
+                errorDiv.classList.add('translate-x-full');
+                setTimeout(function() {
+                    document.body.removeChild(errorDiv);
+                }, 300);
+            }, 3000);
+        }
+        
+        // Set current page as placeholder when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const pageInput = document.getElementById('pageInput');
+            if (pageInput) {
+                const pageInputContainer = pageInput.closest('[data-current-page]');
+                const currentPage = pageInputContainer.dataset.currentPage;
+                pageInput.placeholder = currentPage;
+            }
+        });
+    </script>
 
     <!-- Footer -->
     <footer class="bg-white dark:bg-gray-900 mt-0">

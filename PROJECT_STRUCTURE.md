@@ -1,128 +1,128 @@
 # FYP Project Structure
 
-## 📁 Organized Codebase Layout
+## Current Codebase Layout
 
 ```
 FYP/
-├── 📁 config/                    # Configuration files
-│   ├── settings.yaml
-│   └── environment.json
+├── api/                      # API entrypoint for serverless deployment
+│   └── index.py             # Vercel serverless function
 │
-├── 📁 data/                      # Data storage
-│   ├── 📁 logs/                  # Log files (moved from root)
-│   │   ├── Android_2k.log_structured.csv
-│   │   ├── BGL_2k.log
-│   │   ├── BGL_2k.log_structured.csv
-│   │   ├── Hadoop_2k.log_structured.csv
-│   │   ├── HDFS_2k.log_structured.csv
-│   │   ├── OpenSSH_2k.log_structured.csv
-│   │   └── logfile.csv
-│   ├── 📁 uploads/               # User uploaded files (moved from root)
-│   │   └── anomaly_results_*.csv
-│   └── 📁 results/               # Analysis results
+├── flashlog/                 # Main Flask web application
+│   ├── app/                 # Flask application core
+│   │   ├── __init__.py      # App factory and configuration
+│   │   ├── auth.py          # Authentication and user management
+│   │   ├── admin.py         # Admin panel functionality
+│   │   ├── routes.py        # Main application routes
+│   │   └── logai_handler.py # LogAI integration handler
+│   ├── templates/           # HTML templates
+│   │   ├── index.html       # Main dashboard
+│   │   ├── analyzed_logs.html # Results display
+│   │   ├── history.html     # User activity history
+│   │   ├── auth/            # Authentication templates
+│   │   ├── admin/           # Admin panel templates
+│   │   └── errors/          # Error page templates
+│   ├── uploads/             # User uploaded files (auto-generated)
+│   ├── flashlog/            # Database and backup files (excluded from git)
+│   ├── run.py               # Application entry point
+│   ├── requirements.txt     # Flask app dependencies
+│   ├── create_emergency_admin.py # Emergency admin creation script
+│   ├── EMERGENCY_ADMIN_README.md # Emergency admin documentation
+│   ├── SECURITY.md          # Security documentation
+│   ├── TODO_NEXT.md         # Development roadmap
+│   ├── env_example.txt      # Environment configuration template
+│   ├── users.db             # SQLite database (excluded from git)
+│   ├── check_activities.py  # Activity monitoring script
+│   ├── ensure_user_activities_table.py # Database setup script
+│   ├── test_activities.py   # Activity testing script
+│   ├── migrate_db.py        # Database migration script
+│   └── test_upload.html     # Upload testing page
 │
-├── 📁 docs/                      # Documentation
-│   ├── 📁 thesis/                # Thesis documents
-│   │   ├── FYP_Thesis.md
-│   │   └── FYP_Thesis_Complete_Project_Analysis.md
-│   └── 📁 api/                   # API documentation
+├── logai/                    # Core log analysis library
+│   ├── logai/               # Main library code
+│   │   ├── algorithms/      # AI algorithms implementation
+│   │   │   ├── anomaly_detection_algo/ # Anomaly detection algorithms
+│   │   │   ├── clustering_algo/        # Clustering algorithms
+│   │   │   ├── parsing_algo/           # Log parsing algorithms
+│   │   │   ├── vectorization_algo/     # Vectorization algorithms
+│   │   │   └── nn_model/               # Neural network models
+│   │   ├── applications/    # Application workflows
+│   │   ├── analysis/        # Analysis components
+│   │   ├── dataloader/      # Data loading utilities
+│   │   ├── information_extraction/ # Feature extraction
+│   │   ├── preprocess/      # Data preprocessing
+│   │   ├── utils/           # Utility functions
+│   │   └── config_interfaces.py # Configuration interfaces
+│   └── tests/               # Library tests
 │
-├── 📁 logai/                     # LogAI library (existing)
-│   ├── 📁 algorithms/
-│   ├── 📁 analysis/
-│   ├── 📁 applications/
-│   ├── 📁 dataloader/
-│   ├── 📁 gui/
-│   ├── 📁 information_extraction/
-│   ├── 📁 preprocess/
-│   ├── 📁 utils/
-│   └── 📁 tests/
+├── scripts/                  # Utility scripts
+│   └── run_logai_to_elasticsearch.py # Elasticsearch integration
 │
-├── 📁 scripts/                   # Utility scripts
-│   ├── 📁 setup/                 # Setup scripts
-│   └── 📁 deployment/            # Deployment scripts
-│       └── run_logai_to_elasticsearch.py
+├── logs/                     # Sample log files (optional)
+│   ├── Android_2k.log_structured.csv
+│   ├── BGL_2k.log
+│   ├── Hadoop_2k.log_structured.csv
+│   ├── HDFS_2k.log_structured.csv
+│   ├── Linux_2k.log
+│   ├── Windows_2k.log_structured.csv
+│   └── logfile.csv
 │
-├── 📁 src/                       # Source code
-│   ├── 📁 core/                  # Core functionality
-│   ├── 📁 utils/                 # Utility functions
-│   │   └── generate_thesis.py
-│   ├── 📁 converters/            # File conversion utilities
-│   │   ├── convert_thesis.py
-│   │   ├── convert_thesis_simple.py
-│   │   ├── convert_thesis_to_pdf.py
-│   │   └── simple_convert.py
-│   └── 📁 web_app/               # Web application (moved from FYP_GUI)
-│       ├── 📁 app/
-│       ├── 📁 static/
-│       ├── 📁 templates/
-│       ├── 📁 uploads/
-│       ├── run.py
-│       └── requirements.txt
-│
-├── 📁 tests/                     # Test files
-│   ├── 📁 unit/                  # Unit tests
-│   ├── 📁 integration/           # Integration tests
-│   ├── 📁 e2e/                   # End-to-end tests
-│   └── 📁 test_cases/            # All test files (organized)
-│       ├── test_algorithm_names.py
-│       ├── test_anomaly_detection_fix.py
-│       ├── test_all_parsers.py
-│       ├── test_all_parsers_normalization.py
-│       ├── test_complete_normalization.py
-│       ├── test_consistency.py
-│       ├── test_final_solution.py
-│       ├── test_frontend_fix.py
-│       ├── test_gui_fix.py
-│       ├── test_js_logic.py
-│       ├── test_log_upload.py
-│       ├── test_normalization.py
-│       ├── test_one_class_svm_fix.py
-│       ├── test_parsers.py
-│       ├── test_unstructured_logs.py
-│       ├── debug_boolean_issue.py
-│       ├── fix_anomaly_detection.py
-│       ├── fix_log_normalization.py
-│       ├── simple_drain_test.py
-│       └── simple_log_test.py
-│
-├── 📁 .venv/                     # Virtual environment
-├── 📁 .git/                      # Git repository
-├── .gitignore                    # Git ignore rules
-└── README.md                     # Project documentation
+├── .venv/                    # Virtual environment (excluded from git)
+├── .git/                     # Git repository
+├── .gitignore                # Git ignore rules
+├── requirements.txt          # Root dependencies
+├── README.md                 # Project documentation
+├── PROJECT_STRUCTURE.md      # This file
+├── DEPLOYMENT.md             # Deployment guide
+├── .vercelignore             # Vercel ignore rules
+└── vercel.json               # Vercel configuration
 ```
 
-## 🎯 Organization Benefits
+## Key Components
 
-### **1. Clear Separation of Concerns**
-- **`src/`**: All source code organized by functionality
-- **`tests/`**: Comprehensive test structure
-- **`data/`**: All data files in one place
-- **`docs/`**: Documentation centralized
-- **`scripts/`**: Utility and deployment scripts
+### 1. Web Application (flashlog/)
+- **Flask-based web interface** for log upload and analysis
+- **User authentication system** with admin panel
+- **Real-time log processing** and anomaly detection
+- **Interactive dashboards** for results visualization
+- **User activity tracking** and history
 
-### **2. Improved Maintainability**
-- **Modular structure**: Each component has its own directory
-- **Easy navigation**: Clear file organization
-- **Scalable**: Easy to add new components
+### 2. Core Library (logai/)
+- **Comprehensive log analysis algorithms**
+- **Multiple anomaly detection methods** (Isolation Forest, LOF, One-Class SVM)
+- **Advanced log parsing** (Drain, AEL, IPLOM)
+- **Clustering algorithms** (K-means, DBSCAN, BIRCH)
+- **Neural network models** (LSTM, CNN, Transformer)
 
-### **3. Professional Structure**
-- **Industry standard**: Follows Python project conventions
-- **Team collaboration**: Clear structure for multiple developers
-- **Deployment ready**: Proper separation of concerns
+### 3. API Layer (api/)
+- **Serverless deployment support** via Vercel
+- **RESTful API endpoints** for log processing
+- **Scalable architecture** for production use
 
-### **4. Test Organization**
-- **`unit/`**: Individual component tests
-- **`integration/`**: Component interaction tests
-- **`e2e/`**: Full system tests
-- **`test_cases/`**: All existing test files organized
+### 4. Sample Data (logs/)
+- **Various log formats** for testing and demonstration
+- **Structured and unstructured logs**
+- **Different system types** (Windows, Linux, Android, etc.)
 
-## 🚀 Next Steps
+## Security Features
 
-1. **Create configuration files** in `config/`
-2. **Add proper requirements.txt** in root
-3. **Create setup scripts** in `scripts/setup/`
-4. **Add API documentation** in `docs/api/`
-5. **Organize test files** into appropriate categories
+- **Comprehensive .gitignore** protecting sensitive files
+- **Database files excluded** from version control
+- **Environment configuration** templates provided
+- **Emergency admin access** script for recovery
+- **User session management** with secure tokens
 
-The codebase is now properly organized and ready for development! 
+## Development Workflow
+
+1. **Local Development**: Use `flashlog/run.py` for local testing
+2. **Library Development**: Work in `logai/` directory
+3. **Testing**: Use sample logs in `logs/` directory
+4. **Deployment**: Use Vercel configuration for production
+
+## File Organization Benefits
+
+- **Clear separation** between web app and core library
+- **Modular architecture** for easy maintenance
+- **Production-ready structure** with proper security
+- **Scalable design** supporting multiple deployment options
+
+The codebase is now clean, secure, and production-ready! 

@@ -409,6 +409,27 @@ def profile():
     if not user:
         return redirect(url_for('auth.login'))
     
+    # Clear any existing flash messages that are not profile-related
+    if request.method == 'GET':
+        # Get all flash messages and clear them
+        from flask import get_flashed_messages
+        flashed_messages = get_flashed_messages(with_categories=True)
+        
+        # Only keep profile-related messages
+        profile_messages = []
+        for category, message in flashed_messages:
+            if any(keyword in message.lower() for keyword in ['profile', 'account', 'password', 'welcome']):
+                profile_messages.append((category, message))
+        
+        # Clear all flash messages and re-add only profile-related ones
+        from flask import session
+        if '_flashes' in session:
+            del session['_flashes']
+        
+        # Re-add only profile-related messages
+        for category, message in profile_messages:
+            flash(message, category)
+    
     if request.method == 'POST':
         # Handle profile updates
         new_email = request.form.get('email', '').strip().lower()

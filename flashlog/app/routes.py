@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 from .logai_handler import process_log_file
 from .auth import login_required, get_current_user, get_db_connection
 import numpy as np
+from collections import Counter
 
 def log_user_activity(user_id, activity_type, description, details=None, status='success', ip_address=None, user_agent=None, file_name=None, file_size=None, processing_time=None, anomalies_detected=None, total_logs=None, old_value=None, new_value=None):
     """Log user activity to the database with enhanced tracking"""
@@ -426,6 +427,15 @@ def analyzed_logs():
     end_idx = start_idx + per_page
     paginated_results = results[start_idx:end_idx]
     
+    # Generate a unique analysis_id for dashboard link
+    if 'analysis_id' not in analysis_summary:
+        # Create a unique ID based on timestamp and user
+        import hashlib
+        timestamp = datetime.now().isoformat()
+        user_id = session.get('user_id', 'unknown')
+        unique_string = f"{user_id}_{timestamp}_{analysis_file}"
+        analysis_summary['analysis_id'] = hashlib.md5(unique_string.encode()).hexdigest()[:12]
+    
     # Set cache headers to prevent caching issues
     response = make_response(render_template('analyzed_logs.html', 
                          results=paginated_results,
@@ -444,6 +454,266 @@ def analyzed_logs():
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     return response
+
+@main.route('/analysis-dashboard')
+@main.route('/analysis-dashboard/<analysis_id>')
+def analysis_dashboard(analysis_id=None):
+    """Display interactive dashboard for analysis results"""
+    if 'user_id' not in session:
+        flash('Please log in to view dashboard.', 'error')
+        return redirect(url_for('auth.auth_page'))
+    
+    # Get data from session (using existing session-based approach)
+    analysis_file = session.get('analysis_file')
+    analysis_summary = session.get('analysis_summary', {})
+    
+    if not analysis_file or not os.path.exists(analysis_file):
+        flash('No analysis results found. Please upload and analyze a log file first.', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Load results from the CSV file (same as analyzed_logs route)
+    try:
+        print(f"📂 Loading results from file: {analysis_file}")
+        results_df = pd.read_csv(analysis_file)
+        results = []
+        
+        for _, row in results_df.iterrows():
+            row_dict = {}
+            for col, value in row.items():
+                if pd.isna(value):
+                    row_dict[col] = None
+                elif hasattr(value, 'item'):  # Handle numpy types
+                    row_dict[col] = value.item()
+                elif col == 'is_anomaly':  # Handle anomaly flag specifically
+                    if isinstance(value, (int, float)):
+                        row_dict[col] = bool(value)
+                    elif isinstance(value, str):
+                        row_dict[col] = float(value) == 1.0
+                    else:
+                        row_dict[col] = bool(value)
+                elif isinstance(value, bool):
+                    row_dict[col] = bool(value)
+                else:
+                    row_dict[col] = str(value)
+            results.append(row_dict)
+        
+        print(f"✅ Loaded {len(results)} results from file")
+        
+    except Exception as e:
+        print(f"❌ Error loading results from file: {str(e)}")
+        flash('Error loading analysis results. Please try again.', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Ensure timestamps are strings to prevent template errors
+    for result in results:
+        if 'timestamp' in result and result['timestamp'] is not None:
+            if isinstance(result['timestamp'], (int, float)):
+                # Convert Unix timestamp to ISO format
+                result['timestamp'] = datetime.fromtimestamp(result['timestamp']).isoformat()
+            elif not isinstance(result['timestamp'], str):
+                # Convert any other type to string
+                result['timestamp'] = str(result['timestamp'])
+    
+    if not results:
+        flash('No results found for this analysis.', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Create analysis object for compatibility
+    analysis = {
+        'id': analysis_id or analysis_summary.get('analysis_id', 'current'),
+        'user_id': session['user_id'],
+        'created_at': analysis_summary.get('created_at', datetime.now().isoformat()),
+        'index_name': analysis_summary.get('index_name', 'Unknown'),
+        'parser': analysis_summary.get('parser', 'Unknown'),
+        'model': analysis_summary.get('model', 'Unknown')
+    }
+    
+    # Process data for visualizations
+    dashboard_data = process_dashboard_data(results, analysis)
+    
+    return render_template('dashboard.html', 
+                         analysis=analysis, 
+                         dashboard_data=dashboard_data,
+                         results=results)
+
+def process_dashboard_data(results, analysis):
+    """Process analysis results for dashboard visualizations"""
+    import pandas as pd
+    import numpy as np
+    from collections import Counter
+    import re
+    
+    # Convert results to DataFrame for easier processing
+    df = pd.DataFrame(results)
+    
+    # Basic statistics
+    total_logs = len(df)
+    anomaly_count = df['is_anomaly'].sum() if 'is_anomaly' in df.columns else 0
+    normal_count = total_logs - anomaly_count
+    anomaly_percentage = (anomaly_count / total_logs * 100) if total_logs > 0 else 0
+    
+    # Time-based analysis (if timestamps available)
+    time_data = {}
+    if 'timestamp' in df.columns and df['timestamp'].notna().any():
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        df = df.dropna(subset=['timestamp'])
+        
+        if len(df) > 0:
+            # Hourly distribution
+            df['hour'] = df['timestamp'].dt.hour
+            hourly_dist = df.groupby('hour').size().to_dict()
+            hourly_anomalies = df[df['is_anomaly'] == 1].groupby('hour').size().to_dict()
+            
+            # Daily distribution for timeline
+            df['day'] = df['timestamp'].dt.date
+            daily_dist = df.groupby('day').size().to_dict()
+            daily_anomalies = df[df['is_anomaly'] == 1].groupby('day').size().to_dict()
+            
+            time_data = {
+                'hourly_distribution': hourly_dist,
+                'hourly_anomalies': hourly_anomalies,
+                'daily_distribution': daily_dist,
+                'daily_anomalies': daily_anomalies,
+                'time_range': {
+                    'start': df['timestamp'].min().isoformat(),
+                    'end': df['timestamp'].max().isoformat()
+                }
+            }
+    
+    # Enhanced log pattern analysis
+    pattern_data = {}
+    if 'logline' in df.columns:
+        # Extract common patterns (simplified)
+        log_lines = df['logline'].astype(str)
+        
+        # Word frequency analysis (filter out common words)
+        all_words = ' '.join(log_lines).lower()
+        # Remove common words and punctuation
+        all_words = re.sub(r'[^\w\s]', ' ', all_words)
+        words = [word for word in all_words.split() if len(word) > 2 and word not in ['the', 'and', 'for', 'with', 'this', 'that', 'from', 'have', 'will', 'been', 'they', 'said', 'each', 'which', 'their', 'time', 'would', 'there', 'could', 'other', 'than', 'first', 'then', 'some', 'very', 'when', 'make', 'like', 'into', 'just', 'know', 'take', 'people', 'over', 'think', 'also', 'back', 'after', 'work', 'first', 'well', 'should', 'because', 'through', 'during', 'never', 'before', 'between', 'years', 'where', 'much', 'mean', 'those', 'often', 'important', 'until', 'children', 'side', 'feet', 'car', 'mile', 'night', 'walk', 'white', 'sea', 'began', 'grow', 'took', 'river', 'four', 'carry', 'state', 'once', 'book', 'hear', 'stop', 'without', 'second', 'later', 'miss', 'idea', 'enough', 'eat', 'face', 'watch', 'far', 'Indian', 'really', 'almost', 'let', 'above', 'girl', 'sometimes', 'mountain', 'cut', 'young', 'talk', 'soon', 'list', 'song', 'being', 'leave', 'family', 'it\'s']]
+        word_freq = Counter(words)
+        top_words = dict(word_freq.most_common(10))
+        
+        # Enhanced error level analysis
+        error_patterns = {
+            'ERROR': len(log_lines[log_lines.str.contains(r'\b(error|exception|fail|failed|failure)\b', case=False, regex=True)]),
+            'WARNING': len(log_lines[log_lines.str.contains(r'\b(warning|warn|caution)\b', case=False, regex=True)]),
+            'INFO': len(log_lines[log_lines.str.contains(r'\b(info|information)\b', case=False, regex=True)]),
+            'DEBUG': len(log_lines[log_lines.str.contains(r'\b(debug|trace)\b', case=False, regex=True)]),
+            'CRITICAL': len(log_lines[log_lines.str.contains(r'\b(critical|fatal|emergency)\b', case=False, regex=True)])
+        }
+        
+        # Log severity analysis
+        severity_patterns = {
+            'Critical': error_patterns['CRITICAL'],
+            'High': error_patterns['ERROR'],
+            'Medium': error_patterns['WARNING'],
+            'Low': error_patterns['INFO'] + error_patterns['DEBUG']
+        }
+        
+        pattern_data = {
+            'top_words': top_words,
+            'error_levels': error_patterns,
+            'severity_levels': severity_patterns
+        }
+    
+    # Anomaly insights
+    anomaly_insights = generate_anomaly_insights(df, analysis)
+    
+    return {
+        'summary': {
+            'total_logs': total_logs,
+            'anomaly_count': anomaly_count,
+            'normal_count': normal_count,
+            'anomaly_percentage': round(anomaly_percentage, 2)
+        },
+        'time_data': time_data,
+        'pattern_data': pattern_data,
+        'anomaly_insights': anomaly_insights
+    }
+
+def generate_anomaly_insights(df, analysis):
+    """Generate insights and mitigation recommendations for anomalies"""
+    insights = []
+    
+    if 'is_anomaly' not in df.columns:
+        return insights
+    
+    anomaly_df = df[df['is_anomaly'] == 1]
+    
+    if len(anomaly_df) == 0:
+        insights.append({
+            'type': 'success',
+            'title': 'No Anomalies Detected',
+            'description': 'Your log analysis shows no anomalies. Your system appears to be running normally.',
+            'recommendation': 'Continue monitoring your logs regularly to maintain system health.'
+        })
+        return insights
+    
+    # Analyze anomaly patterns
+    total_anomalies = len(anomaly_df)
+    anomaly_percentage = (total_anomalies / len(df)) * 100
+    
+    # High anomaly rate warning
+    if anomaly_percentage > 10:
+        insights.append({
+            'type': 'warning',
+            'title': 'High Anomaly Rate Detected',
+            'description': f'{anomaly_percentage:.1f}% of logs are marked as anomalies, which is unusually high.',
+            'recommendation': 'Review your anomaly detection thresholds and investigate potential system issues.'
+        })
+    
+    # Time-based patterns
+    if 'timestamp' in anomaly_df.columns and anomaly_df['timestamp'].notna().any():
+        anomaly_df = anomaly_df.copy()  # Create a copy to avoid SettingWithCopyWarning
+        anomaly_df['timestamp'] = pd.to_datetime(anomaly_df['timestamp'], errors='coerce')
+        anomaly_df = anomaly_df.dropna(subset=['timestamp'])
+        
+        if len(anomaly_df) > 0:
+            # Check for clustered anomalies
+            anomaly_df = anomaly_df.sort_values('timestamp')
+            time_diffs = anomaly_df['timestamp'].diff().dt.total_seconds()
+            clustered_anomalies = (time_diffs < 60).sum()  # Anomalies within 1 minute
+            
+            if clustered_anomalies > 0:
+                insights.append({
+                    'type': 'alert',
+                    'title': 'Clustered Anomalies Detected',
+                    'description': f'{clustered_anomalies} anomalies occurred in rapid succession.',
+                    'recommendation': 'Investigate potential system failures or attacks that may have caused multiple issues simultaneously.'
+                })
+    
+    # Log content analysis
+    if 'logline' in anomaly_df.columns:
+        log_lines = anomaly_df['logline'].astype(str)
+        
+        # Check for common error patterns
+        error_keywords = ['error', 'exception', 'failed', 'timeout', 'connection refused']
+        error_counts = {}
+        
+        for keyword in error_keywords:
+            count = len(log_lines[log_lines.str.contains(keyword, case=False)])
+            if count > 0:
+                error_counts[keyword] = count
+        
+        if error_counts:
+            most_common_error = max(error_counts.keys(), key=lambda k: error_counts[k])
+            insights.append({
+                'type': 'info',
+                'title': f'Common Error Pattern: {most_common_error.title()}',
+                'description': f'{error_counts[most_common_error]} anomalies contain "{most_common_error}" errors.',
+                'recommendation': f'Focus on resolving {most_common_error} issues first as they appear frequently in anomalies.'
+            })
+    
+    # General recommendations
+    insights.append({
+        'type': 'info',
+        'title': 'General Recommendations',
+        'description': f'Found {total_anomalies} anomalies in your log analysis.',
+        'recommendation': 'Review each anomaly individually, check system resources, and monitor for similar patterns in future logs.'
+    })
+    
+    return insights
 
 @main.route('/download/<filename>')
 @login_required

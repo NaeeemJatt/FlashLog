@@ -229,7 +229,7 @@ class LogAnomalyDetection:
                 # Convert loglines to list if it's a pandas Series
                 if hasattr(self.loglines, 'tolist'):
                     loglines_list = self.loglines.tolist()
-                    else:
+                else:
                     loglines_list = list(self.loglines)
                 
                 # Perform simple anomaly detection

@@ -550,6 +550,18 @@
     </footer>
 
     <script>
+        // Check if Chart.js is loaded
+        if (typeof Chart === 'undefined') {
+            console.error('❌ Chart.js is not loaded! Please check the CDN link.');
+            document.addEventListener('DOMContentLoaded', function() {
+                // Show error message on dashboard
+                const chartContainers = document.querySelectorAll('.chart-container');
+                chartContainers.forEach(container => {
+                    container.innerHTML = '<div class="flex items-center justify-center h-full text-red-500"><p>Chart.js failed to load. Please refresh the page.</p></div>';
+                });
+            });
+        }
+        
         // Global chart instances
         let charts = {};
         
@@ -680,7 +692,19 @@
                     };
                 
                 case 'error':
-                    const errorData = {{ dashboard_data.pattern_data.error_levels | tojson }};
+                    const errorData = {{ dashboard_data.pattern_data.error_levels | tojson if dashboard_data.pattern_data and dashboard_data.pattern_data.error_levels else '{}' }};
+                    if (Object.keys(errorData).length === 0) {
+                        return {
+                            labels: ['No Error Data'],
+                            datasets: [{
+                                label: 'Count',
+                                data: [1],
+                                backgroundColor: [chartColors.light],
+                                borderRadius: 6,
+                                borderSkipped: false
+                            }]
+                        };
+                    }
                     return {
                         labels: Object.keys(errorData),
                         datasets: [{
@@ -693,8 +717,8 @@
                     };
                 
                 case 'hourly':
-                    const hourlyData = {{ dashboard_data.time_data.hourly_distribution | tojson }};
-                    const hourlyAnomalies = {{ dashboard_data.time_data.hourly_anomalies | tojson }};
+                    const hourlyData = {{ dashboard_data.time_data.hourly_distribution | tojson if dashboard_data.time_data and dashboard_data.time_data.hourly_distribution else '{}' }};
+                    const hourlyAnomalies = {{ dashboard_data.time_data.hourly_anomalies | tojson if dashboard_data.time_data and dashboard_data.time_data.hourly_anomalies else '{}' }};
                     const hours = Array.from({length: 24}, (_, i) => i);
                     const hourlyValues = hours.map(hour => hourlyData[hour] || 0);
                     const anomalyValues = hours.map(hour => hourlyAnomalies[hour] || 0);
@@ -719,7 +743,18 @@
                     };
                 
                 case 'words':
-                    const wordsData = {{ dashboard_data.pattern_data.top_words | tojson }};
+                    const wordsData = {{ dashboard_data.pattern_data.top_words | tojson if dashboard_data.pattern_data and dashboard_data.pattern_data.top_words else '{}' }};
+                    if (Object.keys(wordsData).length === 0) {
+                        return {
+                            labels: ['No Word Data'],
+                            datasets: [{
+                                label: 'Frequency',
+                                data: [1],
+                                backgroundColor: chartColors.light,
+                                borderRadius: 6
+                            }]
+                        };
+                    }
                     return {
                         labels: Object.keys(wordsData),
                         datasets: [{
@@ -772,40 +807,72 @@
 
         // Initialize all charts
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize anomaly chart
-            const anomalyCtx = document.getElementById('anomalyChart');
-            if (anomalyCtx) {
-                charts.anomaly = new Chart(anomalyCtx, getChartConfig('anomaly', 'doughnut'));
-            }
+            console.log('🚀 Initializing dashboard charts...');
+            
+            try {
+                // Initialize anomaly chart
+                const anomalyCtx = document.getElementById('anomalyChart');
+                if (anomalyCtx) {
+                    console.log('📊 Initializing anomaly chart...');
+                    charts.anomaly = new Chart(anomalyCtx, getChartConfig('anomaly', 'doughnut'));
+                    console.log('✅ Anomaly chart initialized');
+                } else {
+                    console.warn('⚠️ Anomaly chart canvas not found');
+                }
 
-            // Initialize error chart
-            const errorCtx = document.getElementById('errorChart');
-            if (errorCtx) {
-                charts.error = new Chart(errorCtx, getChartConfig('error', 'pie'));
-            }
+                // Initialize error chart
+                const errorCtx = document.getElementById('errorChart');
+                if (errorCtx) {
+                    console.log('📊 Initializing error chart...');
+                    charts.error = new Chart(errorCtx, getChartConfig('error', 'pie'));
+                    console.log('✅ Error chart initialized');
+                } else {
+                    console.warn('⚠️ Error chart canvas not found');
+                }
 
-            // Initialize hourly chart
-            const hourlyCtx = document.getElementById('hourlyChart');
-            if (hourlyCtx) {
-                charts.hourly = new Chart(hourlyCtx, getChartConfig('hourly', 'bar'));
-            }
+                // Initialize hourly chart
+                const hourlyCtx = document.getElementById('hourlyChart');
+                if (hourlyCtx) {
+                    console.log('📊 Initializing hourly chart...');
+                    charts.hourly = new Chart(hourlyCtx, getChartConfig('hourly', 'bar'));
+                    console.log('✅ Hourly chart initialized');
+                } else {
+                    console.warn('⚠️ Hourly chart canvas not found');
+                }
 
-            // Initialize words chart
-            const wordsCtx = document.getElementById('wordsChart');
-            if (wordsCtx) {
-                charts.words = new Chart(wordsCtx, getChartConfig('words', 'horizontalBar'));
-            }
+                // Initialize words chart
+                const wordsCtx = document.getElementById('wordsChart');
+                if (wordsCtx) {
+                    console.log('📊 Initializing words chart...');
+                    charts.words = new Chart(wordsCtx, getChartConfig('words', 'horizontalBar'));
+                    console.log('✅ Words chart initialized');
+                } else {
+                    console.warn('⚠️ Words chart canvas not found');
+                }
 
-            // Initialize severity chart
-            const severityCtx = document.getElementById('severityChart');
-            if (severityCtx) {
-                charts.severity = new Chart(severityCtx, getChartConfig('severity', 'pie'));
-            }
+                // Initialize severity chart
+                const severityCtx = document.getElementById('severityChart');
+                if (severityCtx) {
+                    console.log('📊 Initializing severity chart...');
+                    charts.severity = new Chart(severityCtx, getChartConfig('severity', 'pie'));
+                    console.log('✅ Severity chart initialized');
+                } else {
+                    console.warn('⚠️ Severity chart canvas not found');
+                }
 
-            // Initialize timeline chart
-            const timelineCtx = document.getElementById('timelineChart');
-            if (timelineCtx) {
-                charts.timeline = new Chart(timelineCtx, getChartConfig('timeline', 'line'));
+                // Initialize timeline chart
+                const timelineCtx = document.getElementById('timelineChart');
+                if (timelineCtx) {
+                    console.log('📊 Initializing timeline chart...');
+                    charts.timeline = new Chart(timelineCtx, getChartConfig('timeline', 'line'));
+                    console.log('✅ Timeline chart initialized');
+                } else {
+                    console.warn('⚠️ Timeline chart canvas not found');
+                }
+                
+                console.log('🎉 All charts initialized successfully!');
+            } catch (error) {
+                console.error('❌ Error initializing charts:', error);
             }
         });
 

@@ -569,6 +569,10 @@ def process_dashboard_data(results, analysis):
             daily_dist = df.groupby('day').size().to_dict()
             daily_anomalies = df[df['is_anomaly'] == 1].groupby('day').size().to_dict()
             
+            # Convert datetime.date keys to strings for JSON serialization
+            daily_dist = {str(key): value for key, value in daily_dist.items()}
+            daily_anomalies = {str(key): value for key, value in daily_anomalies.items()}
+            
             time_data = {
                 'hourly_distribution': hourly_dist,
                 'hourly_anomalies': hourly_anomalies,

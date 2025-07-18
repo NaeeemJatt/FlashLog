@@ -177,6 +177,7 @@
                                        class="h-4 w-4 text-green-600 border-gray-400 rounded outline-none">
                                 <span class="ml-2 text-sm text-gray-700">Remember me</span>
                             </label>
+                            <a href="{{ url_for('auth.forgot_password') }}" class="text-sm text-green-600 hover:text-green-700">Forgot Password?</a>
                         </div>
                         <button type="submit" 
                                 class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-semibold shadow-lg transition-all duration-200 transform hover:scale-105">
@@ -221,10 +222,16 @@
                                    id="register-password" 
                                    name="password" 
                                    required
-                                   minlength="6"
+                                   minlength="12"
                                    class="w-full px-4 py-3 border rounded-lg outline-none transition-all duration-200 input-field"
                                    placeholder="Create a password">
-                            <p class="text-xs text-gray-600 mt-1">Minimum 6 characters</p>
+                            <ul id="password-requirements" class="text-xs mt-2 space-y-1">
+                                <li id="pw-length" class="text-gray-600 flex items-center"><span class="mr-2 w-4 h-4 inline-block">&#10060;</span> At least 12 characters</li>
+                                <li id="pw-upper" class="text-gray-600 flex items-center"><span class="mr-2 w-4 h-4 inline-block">&#10060;</span> At least one uppercase letter</li>
+                                <li id="pw-lower" class="text-gray-600 flex items-center"><span class="mr-2 w-4 h-4 inline-block">&#10060;</span> At least one lowercase letter</li>
+                                <li id="pw-number" class="text-gray-600 flex items-center"><span class="mr-2 w-4 h-4 inline-block">&#10060;</span> At least one number</li>
+                                <li id="pw-special" class="text-gray-600 flex items-center"><span class="mr-2 w-4 h-4 inline-block">&#10060;</span> At least one special character</li>
+                            </ul>
                         </div>
                         <div>
                             <label for="register-confirm-password" class="block text-sm font-medium label-text mb-2">
@@ -237,12 +244,9 @@
                                    class="w-full px-4 py-3 border rounded-lg outline-none transition-all duration-200 input-field"
                                    placeholder="Confirm your password">
                         </div>
-                        <div class="flex items-start">
-                            <input type="checkbox" 
-                                   id="terms" 
-                                   required
-                                   class="h-4 w-4 text-green-600 border-gray-400 rounded outline-none mt-1">
-                            <label for="terms" class="ml-2 text-sm text-gray-700">
+                        <div class="flex items-start mt-2">
+                            <input type="checkbox" id="terms" name="terms" required class="h-4 w-4 text-green-600 border-gray-400 rounded outline-none mt-1 mr-2" style="position: static; opacity: 1; pointer-events: auto; z-index: 1;" />
+                            <label for="terms" class="ml-2 text-sm text-gray-700 cursor-pointer select-none">
                                 I agree to the 
                                 <a href="#" class="text-green-600 hover:text-green-700">Terms of Service</a> 
                                 and 
@@ -250,7 +254,9 @@
                             </label>
                         </div>
                         <button type="submit" 
-                                class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-semibold shadow-lg transition-all duration-200 transform hover:scale-105">
+                                id="register-submit"
+                                class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-semibold shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
                             Create Account
                         </button>
                     </form>
@@ -341,6 +347,48 @@
                 return false;
             }
         });
+
+        // Real-time password validation for registration
+        const pwInput = document.getElementById('register-password');
+        const pwLength = document.getElementById('pw-length');
+        const pwUpper = document.getElementById('pw-upper');
+        const pwLower = document.getElementById('pw-lower');
+        const pwNumber = document.getElementById('pw-number');
+        const pwSpecial = document.getElementById('pw-special');
+        const registerSubmit = document.getElementById('register-submit');
+
+        function checkPasswordRequirements(pw) {
+            const lengthOK = pw.length >= 12;
+            const upperOK = /[A-Z]/.test(pw);
+            const lowerOK = /[a-z]/.test(pw);
+            const numberOK = /\d/.test(pw);
+            const specialOK = /[!@#$%^&*(),.?":{}|<>]/.test(pw);
+            return { lengthOK, upperOK, lowerOK, numberOK, specialOK };
+        }
+
+        function updatePasswordChecklist() {
+            const pw = pwInput.value;
+            const { lengthOK, upperOK, lowerOK, numberOK, specialOK } = checkPasswordRequirements(pw);
+            // Helper to update each item
+            function updateItem(item, ok) {
+                item.classList.remove('text-green-600', 'text-gray-600');
+                item.classList.add(ok ? 'text-green-600' : 'text-gray-600');
+                item.querySelector('span').innerHTML = ok ? '&#10003;' : '&#10060;';
+            }
+            updateItem(pwLength, lengthOK);
+            updateItem(pwUpper, upperOK);
+            updateItem(pwLower, lowerOK);
+            updateItem(pwNumber, numberOK);
+            updateItem(pwSpecial, specialOK);
+            // Enable submit only if all are true
+            registerSubmit.disabled = !(lengthOK && upperOK && lowerOK && numberOK && specialOK);
+        }
+
+        if (pwInput) {
+            pwInput.addEventListener('input', updatePasswordChecklist);
+            // Initial state
+            updatePasswordChecklist();
+        }
 
         // Auto-hide flash messages after 3 seconds with fadeout
         const flashMessages = document.querySelectorAll('.flash-message');

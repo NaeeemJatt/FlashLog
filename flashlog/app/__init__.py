@@ -63,9 +63,19 @@ def create_app():
     from .routes import main
     from .auth import auth
     from .admin import admin
+    from .dashboard import dashboard_bp
+    from .download import download_bp
+    from .history import history_bp
+    from .kibana import kibana_bp
+    from .upload import upload_bp
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(admin, url_prefix='/admin')
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(download_bp)
+    app.register_blueprint(history_bp)
+    app.register_blueprint(kibana_bp)
+    app.register_blueprint(upload_bp)
 
     return app

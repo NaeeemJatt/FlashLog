@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Authentication{% endblock %}</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .form-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .input-field {
+            background: rgba(255, 255, 255, 0.9) !important;
+            color: #1f2937 !important;
+            border-color: rgba(156, 163, 175, 0.5) !important;
+        }
+        .input-field::placeholder {
+            color: #6b7280 !important;
+        }
+        .input-field:focus {
+            background: rgba(255, 255, 255, 1) !important;
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+        }
+        .label-text {
+            color: #374151 !important;
+            font-weight: 500 !important;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 25%, #10b981 50%, #6b7280 75%, #3b82f6 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg flex items-center justify-center">
+    <div class="w-full max-w-md form-wrapper rounded-xl shadow-2xl p-8 my-12">
+        <div class="mb-8 text-center">
+            <div class="text-4xl font-bold text-gray-800 mb-2">FlashLog</div>
+            <div class="text-md text-gray-500">AI-Powered Log Analysis & Anomaly Detection</div>
+        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="mb-4">
+                {% for category, message in messages %}
+                    <li class="text-{{ 'red' if category == 'error' else 'green' }}-600">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+        <div class="mt-8 text-center text-xs text-gray-400">© 2024 FlashLog. All rights reserved.</div>
+    </div>
+</body>
+</html> 

@@ -5,6 +5,9 @@ import os
 from datetime import datetime, timedelta
 import uuid
 import re
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField, HiddenField
+from wtforms.validators import DataRequired, Length, EqualTo, Regexp
 
 auth = Blueprint('auth', __name__)
 
@@ -275,7 +278,7 @@ def login():
             )
             
             flash(f'Welcome back, {user["username"]}!', 'success')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('dashboard.index'))
         else:
             flash('Invalid username or password!', 'error')
     
@@ -326,7 +329,7 @@ def auth_page():
     """Combined authentication page"""
     # If user is already logged in, redirect to main page
     if 'user_id' in session:
-        return redirect(url_for('main.index'))
+        return redirect(url_for('dashboard.index'))
     
     return render_template('auth/auth.html')
 
@@ -366,7 +369,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if 'role' not in session or session['role'] != 'admin':
             flash('Admin access required!', 'error')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('dashboard.index'))
         return f(*args, **kwargs)
     
     return decorated_function
@@ -562,6 +565,98 @@ def change_password():
         return redirect(url_for('auth.profile'))
     
     return render_template('auth/change_password.html')
+
+class ForgotPasswordForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    submit = SubmitField('Next')
+
+class ConfirmEmailForm(FlaskForm):
+    username = HiddenField('Username', validators=[DataRequired()])
+    confirm = SubmitField('Yes, this is my email')
+    deny = SubmitField('No, not my email')
+
+class ResetPasswordForm(FlaskForm):
+    username = HiddenField('Username', validators=[DataRequired()])
+    password = PasswordField('New Password', validators=[
+        DataRequired(),
+        Length(min=12, message='Password must be at least 12 characters long.'),
+        Regexp(r'.*[A-Z].*', message='Must contain an uppercase letter.'),
+        Regexp(r'.*[a-z].*', message='Must contain a lowercase letter.'),
+        Regexp(r'.*\d.*', message='Must contain a number.'),
+        Regexp(r'.*[!@#$%^&*(),.?":{}|<>].*', message='Must contain a special character.')
+    ])
+    confirm_password = PasswordField('Confirm Password', validators=[
+        DataRequired(),
+        EqualTo('password', message='Passwords must match.')
+    ])
+    submit = SubmitField('Reset Password')
+
+@auth.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        username = form.username.data
+        if username:
+            username = username.strip()
+        else:
+            flash('Username is required.', 'error')
+            return render_template('auth/forgot_password.html', form=form)
+        # Always proceed to confirmation step, do not reveal if user exists
+        return redirect(url_for('auth.forgot_password_confirm', username=username))
+    return render_template('auth/forgot_password.html', form=form)
+
+@auth.route('/forgot-password/confirm', methods=['GET', 'POST'])
+def forgot_password_confirm():
+    username = request.args.get('username') or request.form.get('username')
+    form = ConfirmEmailForm(username=username)
+    email_masked = None
+    user = None
+    if username:
+        conn = get_db_connection()
+        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        conn.close()
+        if user:
+            email = user['email']
+            # Mask email: show first character, then '***', then everything after '@'
+            parts = email.split('@', 1)
+            if len(parts) == 2 and len(parts[0]) > 0:
+                masked = parts[0][0] + '***'
+                email_masked = masked + '@' + parts[1]
+            else:
+                email_masked = '***@***'
+    if request.method == 'POST':
+        if 'confirm' in request.form:
+            return redirect(url_for('auth.forgot_password_reset', username=username))
+        elif 'deny' in request.form:
+            flash('Please contact support or try again.', 'error')
+            return redirect(url_for('auth.login'))
+    # Always show the same page, even if user not found
+    return render_template('auth/forgot_password_confirm.html', form=form, email_masked=email_masked)
+
+@auth.route('/forgot-password/reset', methods=['GET', 'POST'])
+def forgot_password_reset():
+    username = request.args.get('username') or request.form.get('username')
+    form = ResetPasswordForm(username=username)
+    if form.validate_on_submit():
+        password = form.password.data
+        if not password:
+            flash('Password is required.', 'error')
+            return render_template('auth/forgot_password_reset.html', form=form)
+        # Update password if user exists
+        conn = get_db_connection()
+        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        if user:
+            password_hash = generate_password_hash(password)
+            conn.execute('UPDATE users SET password_hash = ? WHERE username = ?', (password_hash, username))
+            conn.commit()
+            conn.close()
+            flash('Password reset successful! Please log in.', 'success')
+            return redirect(url_for('auth.login'))
+        conn.close()
+        # If user not found, show generic message
+        flash('Password reset successful! Please log in.', 'success')
+        return redirect(url_for('auth.login'))
+    return render_template('auth/forgot_password_reset.html', form=form)
 
 # Initialize database when module is imported
 init_db() 

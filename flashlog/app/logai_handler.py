@@ -6,6 +6,7 @@ from logai.applications.application_interfaces import WorkFlowConfig
 from elasticsearch import Elasticsearch
 import os
 import uuid
+import logging
 
 def send_to_elasticsearch(index_name, result_list):
     try:
@@ -84,72 +85,53 @@ def preprocess_log(filepath):
             df["timestamp"] = pd.Timestamp.now()
             
         except Exception as e:
-            raise ValueError(f"❌ Error reading log file: {str(e)}")
+            logging.error(f"Error reading log file {filepath}: {str(e)}", exc_info=True)
+            raise ValueError("Error reading log file. Please check the file format and try again.")
             
     else:
         # Handle as proper CSV file
         try:
-            df = pd.read_csv(filepath, encoding='utf-8', on_bad_lines='skip')
-        except Exception as e:
-            # If CSV reading fails, try as unstructured log
-            try:
-                with open(filepath, "r", encoding='utf-8', errors='ignore') as f:
-                    lines = f.readlines()
-                
-                cleaned_lines = []
-                for line in lines:
-                    line = line.strip()
-                    if line:
-                        cleaned_lines.append(line)
-                
-                if not cleaned_lines:
-                    raise ValueError("❌ File appears to be empty or contains no valid log entries.")
-                
-                df = pd.DataFrame({"logline": cleaned_lines})
-                df["timestamp"] = pd.Timestamp.now()
-                
-            except Exception as e2:
-                raise ValueError(f"❌ Error reading file: {str(e2)}")
-
-    # Normalize columns FIRST
-    df.columns = [col.strip().lower() for col in df.columns]
-
+            chunks = pd.read_csv(filepath, encoding='utf-8', on_bad_lines='skip', chunksize=10000)
+            df_list = []
+            for chunk in chunks:
+                # Apply normalizations and append to df_list
+                chunk.columns = [col.strip().lower() for col in chunk.columns]
     # Auto-detect log column
     for candidate in ["logline", "message", "log", "content"]:
-        if candidate in df.columns:
-            df.rename(columns={candidate: "logline"}, inplace=True)
+                    if candidate in chunk.columns:
+                        chunk.rename(columns={candidate: "logline"}, inplace=True)
             break
 
-    if "logline" not in df.columns:
+                if "logline" not in chunk.columns:
         raise KeyError("❌ Could not find a log column (e.g., 'logline', 'message') in uploaded file.")
 
     # Auto-detect timestamp column (handle different case variations, now all lowercased)
     timestamp_found = False
     # If both Date and Time columns exist, merge them into a timestamp
-    if 'date' in df.columns and 'time' in df.columns:
+                if 'date' in chunk.columns and 'time' in chunk.columns:
         print("🔧 Merging Date and Time columns into timestamp...")
         # Clean the Time column - remove quotes and handle comma in milliseconds
-        df['time'] = df['time'].astype(str).str.replace('"', '').str.replace(',', '.')
-        df['timestamp'] = df['date'].astype(str) + ' ' + df['time'].astype(str)
+                    chunk['time'] = chunk['time'].astype(str).str.replace('"', '').str.replace(',', '.')
+                    chunk['timestamp'] = chunk['date'].astype(str) + ' ' + chunk['time'].astype(str)
         timestamp_found = True
         print("✅ Created timestamp column from Date and Time")
         # Parse using the correct format - be more lenient
         try:
-            df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S.%f', errors='coerce')
-            failed = df['timestamp'].isna().sum()
+                        chunk['timestamp'] = pd.to_datetime(chunk['timestamp'], format='%Y-%m-%d %H:%M:%S.%f', errors='coerce')
+                        failed = chunk['timestamp'].isna().sum()
             if failed > 0:
                 print(f"⚠️  {failed} timestamp conversions failed, but keeping rows with current timestamp.")
                 # Instead of dropping, fill failed conversions with current time
-                df['timestamp'] = df['timestamp'].fillna(pd.Timestamp.now())
+                            chunk['timestamp'] = chunk['timestamp'].fillna(pd.Timestamp.now())
             print(f"✅ Timestamp column converted to datetime format with custom format")
         except Exception as e:
-            print(f"❌ Timestamp conversion failed: {e}")
+                        logging.error(f"Timestamp conversion failed for file {filepath}: {e}", exc_info=True)
             print("🔧 Using current timestamp for all rows")
-            df['timestamp'] = pd.Timestamp.now()
+                        chunk['timestamp'] = pd.Timestamp.now()
     else:
         for timestamp_candidate in ["timestamp", "time", "date", "datetime"]:
-            if timestamp_candidate in df.columns:
-                df.rename(columns={timestamp_candidate: "timestamp"}, inplace=True)
+                        if timestamp_candidate in chunk.columns:
+                            chunk.rename(columns={timestamp_candidate: "timestamp"}, inplace=True)
                 timestamp_found = True
                 print(f"✅ Found timestamp column: {timestamp_candidate} -> timestamp")
                 break
@@ -159,41 +141,46 @@ def preprocess_log(filepath):
     else:
         # Robustly convert timestamp column to datetime - be more lenient
         try:
-            df["timestamp"] = pd.to_datetime(df["timestamp"], errors='coerce')
+                        chunk["timestamp"] = pd.to_datetime(chunk["timestamp"], errors='coerce')
             # Instead of dropping failed conversions, fill with current time
-            failed = df["timestamp"].isna().sum()
+                        failed = chunk["timestamp"].isna().sum()
             if failed > 0:
                 print(f"⚠️  {failed} timestamp conversions failed, filling with current timestamp.")
-                df["timestamp"] = df["timestamp"].fillna(pd.Timestamp.now())
+                            chunk["timestamp"] = chunk["timestamp"].fillna(pd.Timestamp.now())
             print(f"✅ Timestamp column converted to datetime format")
         except Exception as e:
-            print(f"❌ Timestamp conversion failed: {e}")
+                        logging.error(f"Timestamp conversion failed for file {filepath}: {e}", exc_info=True)
             print("🔧 Using current timestamp for all rows")
-            df["timestamp"] = pd.Timestamp.now()
+                        chunk["timestamp"] = pd.Timestamp.now()
 
     # Clean up loglines - be very lenient with cleaning
-    df.dropna(subset=["logline"], inplace=True)
-    df = df[df["logline"].astype(str).str.strip() != ""]  # Remove empty strings
+                chunk.dropna(subset=["logline"], inplace=True)
+                chunk = chunk[chunk["logline"].astype(str).str.strip() != ""]  # Remove empty strings
     
     # For Android logs, be very lenient - only remove completely empty lines
-    df = df[df["logline"].astype(str).str.strip().str.len() > 0]  # Keep any non-empty lines
+                chunk = chunk[chunk["logline"].astype(str).str.strip().str.len() > 0]  # Keep any non-empty lines
     
     # For Android logs, also check if we have meaningful content
-    if len(df) > 0:
+                if len(chunk) > 0:
         # Check if we have any lines with typical log patterns
         log_patterns = ['error', 'warning', 'info', 'debug', 'exception', 'failed', 'success', 'android', 'system', 'app', 'service', 'log', 'event', 'activity']
-        has_log_patterns = df["logline"].astype(str).str.lower().str.contains('|'.join(log_patterns)).any()
+                    has_log_patterns = chunk["logline"].astype(str).str.lower().str.contains('|'.join(log_patterns)).any()
         
         if not has_log_patterns:
             # If no typical log patterns, just keep all non-empty content
-            non_empty_content = df[df["logline"].astype(str).str.strip().str.len() > 0]
+                        non_empty_content = chunk[chunk["logline"].astype(str).str.strip().str.len() > 0]
             if len(non_empty_content) == 0:
                 raise ValueError("❌ No valid log entries found after cleaning.")
             else:
-                df = non_empty_content
-                print(f"⚠️  No typical log patterns found, but keeping {len(df)} non-empty entries")
+                            chunk = non_empty_content
+                            print(f"⚠️  No typical log patterns found, but keeping {len(chunk)} non-empty entries")
     else:
         raise ValueError("❌ No valid log entries found after cleaning.")
+                df_list.append(chunk)
+            df = pd.concat(df_list) if df_list else pd.DataFrame()
+        except Exception as e2:
+            logging.error(f"Error reading file {filepath}: {str(e2)}", exc_info=True)
+            raise ValueError("Error reading file. Please check the file format and try again.")
 
     cleaned_path = filepath.replace(".csv", "_cleaned.csv").replace(".txt", "_cleaned.csv").replace(".log", "_cleaned.csv")
     df.to_csv(cleaned_path, index=False)
@@ -217,8 +204,8 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
                 df['timestamp'] = df['timestamp'].fillna(pd.Timestamp.now())
             print(f"✅ Timestamp column converted to datetime format")
         except Exception as e:
-            print(f"⚠️  Warning: Timestamp conversion failed: {e}")
-            print("🔧 Using current time as fallback")
+            logging.error(f"Timestamp conversion failed for file {filepath}: {e}", exc_info=True)
+            print("�� Using current time as fallback")
             df['timestamp'] = pd.Timestamp.now()
         # Save the updated DataFrame with proper datetime format
         df.to_csv(cleaned_path, index=False)

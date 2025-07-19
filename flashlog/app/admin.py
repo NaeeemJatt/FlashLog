@@ -179,6 +179,11 @@ def delete_user(user_id):
         return redirect(url_for('admin.users'))
     
     conn = get_db_connection()
+    admin_count = conn.execute('SELECT COUNT(*) FROM users WHERE role = "admin"').fetchone()[0]
+    if admin_count <= 1:
+        flash('Cannot delete the last admin!', 'error')
+        conn.close()
+        return redirect(url_for('admin.users'))
     user = conn.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
     
     if not user:

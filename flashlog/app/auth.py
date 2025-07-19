@@ -8,6 +8,7 @@ import re
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, HiddenField
 from wtforms.validators import DataRequired, Length, EqualTo, Regexp
+from flask_limiter.util import get_remote_address  # If needed
 
 auth = Blueprint('auth', __name__)
 
@@ -78,6 +79,7 @@ def get_db_connection():
     return conn
 
 @auth.route('/register', methods=['GET', 'POST'])
+@current_app.extensions['limiter'].limit('10 per hour')
 def register():
     """User registration"""
     if request.method == 'POST':
@@ -175,6 +177,7 @@ def register():
     return render_template('auth/auth.html')
 
 @auth.route('/login', methods=['GET', 'POST'])
+@current_app.extensions['limiter'].limit('5 per minute')
 def login():
     """User login"""
     if request.method == 'POST':
@@ -523,8 +526,21 @@ def change_password():
             flash('New passwords do not match!', 'error')
             return render_template('auth/change_password.html')
         
-        if len(new_password) < 6:
-            flash('New password must be at least 6 characters long!', 'error')
+        # Enhanced password validation
+        if len(new_password) < 12:
+            flash('New password must be at least 12 characters long!', 'error')
+            return render_template('auth/change_password.html')
+        if not re.search(r'[A-Z]', new_password):
+            flash('New password must contain at least one uppercase letter!', 'error')
+            return render_template('auth/change_password.html')
+        if not re.search(r'[a-z]', new_password):
+            flash('New password must contain at least one lowercase letter!', 'error')
+            return render_template('auth/change_password.html')
+        if not re.search(r'\d', new_password):
+            flash('New password must contain at least one number!', 'error')
+            return render_template('auth/change_password.html')
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', new_password):
+            flash('New password must contain at least one special character!', 'error')
             return render_template('auth/change_password.html')
         
         # Verify current password
@@ -595,19 +611,17 @@ class ResetPasswordForm(FlaskForm):
 def forgot_password():
     form = ForgotPasswordForm()
     if form.validate_on_submit():
-        username = form.username.data
-        if username:
-            username = username.strip()
-        else:
-            flash('Username is required.', 'error')
-            return render_template('auth/forgot_password.html', form=form)
-        # Always proceed to confirmation step, do not reveal if user exists
-        return redirect(url_for('auth.forgot_password_confirm', username=username))
+        username = form.username.data.strip()
+        session['reset_username'] = username  # Store in session
+        return redirect(url_for('auth.forgot_password_confirm'))  # No query param
     return render_template('auth/forgot_password.html', form=form)
 
 @auth.route('/forgot-password/confirm', methods=['GET', 'POST'])
 def forgot_password_confirm():
-    username = request.args.get('username') or request.form.get('username')
+    username = session.get('reset_username')
+    if not username:
+        flash('Invalid reset request.', 'error')
+        return redirect(url_for('auth.forgot_password'))
     form = ConfirmEmailForm(username=username)
     email_masked = None
     user = None
@@ -626,16 +640,19 @@ def forgot_password_confirm():
                 email_masked = '***@***'
     if request.method == 'POST':
         if 'confirm' in request.form:
-            return redirect(url_for('auth.forgot_password_reset', username=username))
+            return redirect(url_for('auth.forgot_password_reset'))  # No param
         elif 'deny' in request.form:
+            session.pop('reset_username', None)
             flash('Please contact support or try again.', 'error')
             return redirect(url_for('auth.login'))
-    # Always show the same page, even if user not found
     return render_template('auth/forgot_password_confirm.html', form=form, email_masked=email_masked)
 
 @auth.route('/forgot-password/reset', methods=['GET', 'POST'])
 def forgot_password_reset():
-    username = request.args.get('username') or request.form.get('username')
+    username = session.get('reset_username')
+    if not username:
+        flash('Invalid reset request.', 'error')
+        return redirect(url_for('auth.forgot_password'))
     form = ResetPasswordForm(username=username)
     if form.validate_on_submit():
         password = form.password.data
@@ -650,6 +667,7 @@ def forgot_password_reset():
             conn.execute('UPDATE users SET password_hash = ? WHERE username = ?', (password_hash, username))
             conn.commit()
             conn.close()
+            session.pop('reset_username', None)  # Clear session
             flash('Password reset successful! Please log in.', 'success')
             return redirect(url_for('auth.login'))
         conn.close()

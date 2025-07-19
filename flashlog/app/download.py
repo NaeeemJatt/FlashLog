@@ -8,11 +8,11 @@ def download_csv(filename):
     """Download the specified CSV file if it exists and user is authenticated"""
     if 'user_id' not in session:
         flash('Please log in to download files.', 'error')
-        return redirect(url_for('auth.auth_page'))
+        return redirect(url_for('dashboard.index'))
     uploads_dir = 'uploads'
-    file_path = os.path.join(uploads_dir, filename)
-    if not os.path.exists(file_path):
-        flash('File not found.', 'error')
+    file_path = os.path.abspath(os.path.join(uploads_dir, filename))
+    if not file_path.startswith(os.path.abspath(uploads_dir)) or not os.path.exists(file_path):
+        flash('Invalid file access.', 'error')
         return redirect(url_for('dashboard.index'))
     return send_file(file_path, as_attachment=True)
 

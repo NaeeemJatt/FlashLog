@@ -6,14 +6,18 @@ def compute_dashboard_metrics():
     """Compute dashboard metrics from all previous analysis results"""
     uploads_dir = 'uploads'
     anomaly_files = glob.glob(os.path.join(uploads_dir, 'anomaly_results_*.csv'))
+    uploads_abs = os.path.abspath(uploads_dir)
     total_logs = 0
     total_anomalies = 0
     total_processing_time = 0
     file_count = 0
     processing_times = []
     for file_path in anomaly_files:
+        abs_path = os.path.abspath(file_path)
+        if not abs_path.startswith(uploads_abs):
+            continue
         try:
-            df = pd.read_csv(file_path)
+            df = pd.read_csv(abs_path)
             if not df.empty:
                 total_logs += len(df)
                 if 'is_anomaly' in df.columns:

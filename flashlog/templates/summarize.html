@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Log Summarization{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">AI Log Summarization</h1>
+            
+            <div class="mb-6">
+                <p class="text-gray-600 mb-4">
+                    Use our local T5-Small model to generate intelligent summaries of your log data.
+                </p>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="text-blue-800 font-medium">Model Status: T5-Small (Local)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Input Section -->
+                <div class="space-y-4">
+                    <h2 class="text-xl font-semibold text-gray-700">Input Logs</h2>
+                    
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-700">Log Data Source</label>
+                        <select id="logSource" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="session">Use Current Analysis Results</option>
+                            <option value="custom">Enter Custom Logs</option>
+                        </select>
+                    </div>
+
+                    <div id="customLogsSection" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Custom Log Data</label>
+                        <textarea id="customLogs" rows="8" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Paste your log data here..."></textarea>
+                    </div>
+
+                    <button id="generateSummary" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                        <span id="buttonText">Generate Summary</span>
+                        <span id="loadingSpinner" class="hidden">
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing...
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Output Section -->
+                <div class="space-y-4">
+                    <h2 class="text-xl font-semibold text-gray-700">Generated Summary</h2>
+                    
+                    <div id="summaryOutput" class="hidden">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div id="summaryText" class="text-gray-800 leading-relaxed"></div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                            <div class="bg-white border border-gray-200 rounded-lg p-3">
+                                <div class="text-gray-600">Original Length</div>
+                                <div id="originalLength" class="font-semibold text-gray-800">-</div>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-lg p-3">
+                                <div class="text-gray-600">Summary Length</div>
+                                <div id="summaryLengthDisplay" class="font-semibold text-gray-800">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="noSummary" class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p>Click "Generate Summary" to create an AI-powered summary of your logs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const logSource = document.getElementById('logSource');
+    const customLogsSection = document.getElementById('customLogsSection');
+    const generateBtn = document.getElementById('generateSummary');
+    const buttonText = document.getElementById('buttonText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const summaryOutput = document.getElementById('summaryOutput');
+    const noSummary = document.getElementById('noSummary');
+    const summaryText = document.getElementById('summaryText');
+    const originalLength = document.getElementById('originalLength');
+    const summaryLengthDisplay = document.getElementById('summaryLengthDisplay');
+
+    // Toggle custom logs section
+    logSource.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            customLogsSection.classList.remove('hidden');
+        } else {
+            customLogsSection.classList.add('hidden');
+        }
+    });
+
+    // Generate summary
+    generateBtn.addEventListener('click', async function() {
+        const source = logSource.value;
+        let logData = '';
+
+        if (source === 'custom') {
+            logData = document.getElementById('customLogs').value.trim();
+            if (!logData) {
+                alert('Please enter log data for summarization');
+                return;
+            }
+        }
+
+        // Show loading state
+        buttonText.classList.add('hidden');
+        loadingSpinner.classList.remove('hidden');
+        generateBtn.disabled = true;
+
+        try {
+            const response = await fetch('/summarize' + (logData ? `?logs=${encodeURIComponent(logData)}` : ''), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                // Display results
+                summaryText.textContent = result.summary;
+                originalLength.textContent = result.original_length + ' chars';
+                summaryLengthDisplay.textContent = result.summary_length + ' chars';
+                
+                summaryOutput.classList.remove('hidden');
+                noSummary.classList.add('hidden');
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to generate summary. Please try again.');
+        } finally {
+            // Hide loading state
+            buttonText.classList.remove('hidden');
+            loadingSpinner.classList.add('hidden');
+            generateBtn.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %} 

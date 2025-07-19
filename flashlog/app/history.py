@@ -13,7 +13,9 @@ def history():
     history_files = [f for f in os.listdir(uploads_dir) if f.startswith('anomaly_results_')]
     history_data = []
     for file in history_files:
-        file_path = os.path.join(uploads_dir, file)
+        file_path = os.path.abspath(os.path.join(uploads_dir, file))
+        if not file_path.startswith(os.path.abspath(uploads_dir)):
+            continue  # Skip invalid paths
         try:
             df = pd.read_csv(file_path)
             if not df.empty:

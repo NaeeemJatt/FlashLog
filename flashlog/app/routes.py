@@ -8,6 +8,7 @@ from .logai_handler import process_log_file
 from .auth import login_required, get_current_user, get_db_connection
 import numpy as np
 from collections import Counter
+from transformers import pipeline
 
 def log_user_activity(user_id, activity_type, description, details=None, status='success', ip_address=None, user_agent=None, file_name=None, file_size=None, processing_time=None, anomalies_detected=None, total_logs=None, old_value=None, new_value=None):
     """Log user activity to the database with enhanced tracking"""
@@ -279,12 +280,13 @@ def get_latest_activities():
     conn = get_db_connection()
     
     # Get activities newer than the last seen ID
+    limit = min(max(request.args.get('limit', 10, type=int), 1), 50)
     activities = conn.execute('''
         SELECT * FROM user_activities 
         WHERE user_id = ? AND id > ? 
         ORDER BY created_at DESC 
-        LIMIT 10
-    ''', (user['id'], last_id)).fetchall()
+        LIMIT ?
+    ''', (user['id'], last_id, limit)).fetchall()
     
     conn.close()
     
@@ -690,3 +692,68 @@ def generate_table_data(df):
         })
     
     return table_data
+
+@main.route('/summarize')
+@login_required
+def summarize():
+    """Summarize log data using local T5 model"""
+    try:
+        # Get log data from session or request
+        log_data = request.args.get('logs', '')
+        if not log_data:
+            # Try to get from session
+            analysis_results = session.get('analysis_results', [])
+            if analysis_results:
+                # Extract log lines from analysis results
+                log_lines = []
+                for result in analysis_results[:50]:  # Limit to first 50 for summarization
+                    if 'logline' in result:
+                        log_lines.append(str(result['logline']))
+                log_data = ' '.join(log_lines)
+            else:
+                return jsonify({'error': 'No log data available for summarization'}), 400
+        
+        # Load local model
+        model_path = 'flashlog/models/t5-small'
+        if not os.path.exists(model_path):
+            return jsonify({'error': 'Local model not found. Please download the model first.'}), 500
+        
+        # Create summarization pipeline
+        summarizer = pipeline('summarization', model=model_path)
+        
+        # Truncate if too long (T5 has input limits)
+        if len(log_data) > 5000:
+            log_data = log_data[:5000] + "..."
+        
+        # Generate summary
+        summary = summarizer(log_data, max_length=150, min_length=50, do_sample=False)[0]['summary_text']
+        
+        # Log the activity
+        user = get_current_user()
+        if user:
+            log_user_activity(
+                user_id=user['id'],
+                activity_type='log_summarization',
+                description='Generated log summary using T5 model',
+                details=f'Summary length: {len(summary)} characters',
+                status='success',
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+        
+        return jsonify({
+            'summary': summary,
+            'original_length': len(log_data),
+            'summary_length': len(summary),
+            'model': 't5-small'
+        })
+        
+    except Exception as e:
+        print(f"Error in summarization: {str(e)}")
+        return jsonify({'error': f'Summarization failed: {str(e)}'}), 500
+
+@main.route('/summarize-ui')
+@login_required
+def summarize_ui():
+    """Serve summarization UI page"""
+    return render_template('summarize.html')

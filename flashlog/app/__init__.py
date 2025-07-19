@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -12,11 +12,15 @@ def create_app():
     # Generate secure secret key - use environment variable in production
     app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
     
-    # Configure session settings for better reliability
+    # Determine environment
+    env = os.environ.get('FLASK_ENV', 'development')
+    is_production = env == 'production'
+    
+    # Configure session settings
     app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
-    app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+    app.config['SESSION_COOKIE_SECURE'] = is_production  # Secure in production
     app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Strict' if is_production else 'Lax'  # Stricter in production
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
     
     # Initialize CSRF protection
@@ -43,7 +47,9 @@ def create_app():
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' cdn.tailwindcss.com; img-src 'self' data:; font-src 'self' cdn.tailwindcss.com;"
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' cdn.tailwindcss.com; style-src 'self' cdn.tailwindcss.com; img-src 'self' data:; font-src 'self' cdn.tailwindcss.com;"
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
         return response
     
     # Global error handler
@@ -77,5 +83,11 @@ def create_app():
     app.register_blueprint(history_bp)
     app.register_blueprint(kibana_bp)
     app.register_blueprint(upload_bp)
+
+    @app.before_request
+    def enforce_https():
+        if is_production and not request.is_secure:
+            url = request.url.replace('http://', 'https://', 1)
+            return redirect(url, code=301)
 
     return app

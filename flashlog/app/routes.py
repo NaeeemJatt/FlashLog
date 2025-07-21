@@ -4,7 +4,7 @@ import glob
 import pandas as pd
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
-from .logai_handler import process_log_file
+# from .logai_handler import process_log_file  # Temporarily commented out due to dependency issues
 from .auth import login_required, get_current_user, get_db_connection
 import numpy as np
 from collections import Counter
@@ -318,61 +318,45 @@ def get_latest_activities():
     response.headers['Expires'] = '0'
     return response
 
-@main.route('/kibana-dashboard')
+@main.route('/flashlog-dashboard')
 @login_required
-def kibana_dashboard():
-    """Display Kibana-style dashboard with time-series data and metrics"""
+def flashlog_dashboard():
+    """Display FlashLog Dashboard with time-series data and metrics"""
     if 'user_id' not in session:
         flash('Please log in to view dashboard.', 'error')
         return redirect(url_for('auth.auth_page'))
-    
-    # Get data from session (using existing session-based approach)
-    analysis_file = session.get('analysis_file')
-    analysis_summary = session.get('analysis_summary', {})
-    
-    if not analysis_file or not os.path.exists(analysis_file):
-        flash('No analysis results found. Please upload and analyze a log file first.', 'error')
+    # Get run_id from session
+    run_id = session.get('current_run')
+    print(f"[DEBUG] [Kibana] run_id in session: {run_id}")
+    if not run_id:
+        print("[DEBUG] [Kibana] No run_id in session - redirecting to dashboard")
+        flash('No analysis run found. Please analyze a log file first.')
         return redirect(url_for('dashboard.index'))
-    
-    # Load results from the CSV file
     try:
-        print(f"📂 Loading results from file: {analysis_file}")
-        results_df = pd.read_csv(analysis_file)
-        results = []
-        
-        for _, row in results_df.iterrows():
-            row_dict = {}
-            for col, value in row.items():
-                if pd.isna(value):
-                    row_dict[col] = None
-                elif hasattr(value, 'item'):  # Handle numpy types
-                    row_dict[col] = value.item()
-                elif col == 'is_anomaly':  # Handle anomaly flag specifically
-                    if isinstance(value, (int, float)):
-                        row_dict[col] = bool(value)
-                    elif isinstance(value, str):
-                        row_dict[col] = float(value) == 1.0
-                    else:
-                        row_dict[col] = bool(value)
-                elif isinstance(value, bool):
-                    row_dict[col] = bool(value)
-                else:
-                    row_dict[col] = str(value)
-            results.append(row_dict)
-        
-        print(f"✅ Loaded {len(results)} results from file")
-        
+        from .auth import get_db_connection
+        import json
+        conn = get_db_connection()
+        row = conn.execute('SELECT results_json FROM analysis_runs WHERE run_id = ?', (run_id,)).fetchone()
+        conn.close()
+        if not row:
+            print("[DEBUG] [Kibana] No results found in DB for run_id - redirecting")
+            flash('Analysis results expired or not found.')
+            return redirect(url_for('dashboard.index'))
+        analysis_results = json.loads(row['results_json'])
+        print(f"[DEBUG] [Kibana] Loaded results from DB, length: {len(analysis_results)}")
     except Exception as e:
-        print(f"❌ Error loading results from file: {str(e)}")
-        flash('Error loading analysis results. Please try again.', 'error')
+        print(f"[DEBUG] [Kibana] Error loading from DB: {str(e)}")
+        flash('Error loading analysis results from storage.', 'error')
         return redirect(url_for('dashboard.index'))
-    
+    if not analysis_results or not isinstance(analysis_results, list):
+        print("[DEBUG] [Kibana] Loaded results invalid - redirecting")
+        flash('Invalid analysis results.')
+        return redirect(url_for('dashboard.index'))
     # Process data for Kibana-style dashboard
-    kibana_data = process_kibana_dashboard_data(results)
-    
-    return render_template('kibana_dashboard.html', 
+    kibana_data = process_kibana_dashboard_data(analysis_results)
+    return render_template('flashlog_dashboard.html', 
                          kibana_data=kibana_data,
-                         results=results)
+                         results=analysis_results)
 
 def process_kibana_dashboard_data(results):
     """Process analysis results for Kibana-style dashboard visualizations"""

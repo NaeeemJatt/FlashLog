@@ -96,86 +96,87 @@ def preprocess_log(filepath):
             for chunk in chunks:
                 # Apply normalizations and append to df_list
                 chunk.columns = [col.strip().lower() for col in chunk.columns]
-    # Auto-detect log column
-    for candidate in ["logline", "message", "log", "content"]:
+                
+                # Auto-detect log column
+                for candidate in ["logline", "message", "log", "content"]:
                     if candidate in chunk.columns:
                         chunk.rename(columns={candidate: "logline"}, inplace=True)
-            break
+                        break
 
                 if "logline" not in chunk.columns:
-        raise KeyError("❌ Could not find a log column (e.g., 'logline', 'message') in uploaded file.")
+                    raise KeyError("❌ Could not find a log column (e.g., 'logline', 'message') in uploaded file.")
 
-    # Auto-detect timestamp column (handle different case variations, now all lowercased)
-    timestamp_found = False
-    # If both Date and Time columns exist, merge them into a timestamp
+                # Auto-detect timestamp column (handle different case variations, now all lowercased)
+                timestamp_found = False
+                # If both Date and Time columns exist, merge them into a timestamp
                 if 'date' in chunk.columns and 'time' in chunk.columns:
-        print("🔧 Merging Date and Time columns into timestamp...")
-        # Clean the Time column - remove quotes and handle comma in milliseconds
+                    print("🔧 Merging Date and Time columns into timestamp...")
+                    # Clean the Time column - remove quotes and handle comma in milliseconds
                     chunk['time'] = chunk['time'].astype(str).str.replace('"', '').str.replace(',', '.')
                     chunk['timestamp'] = chunk['date'].astype(str) + ' ' + chunk['time'].astype(str)
-        timestamp_found = True
-        print("✅ Created timestamp column from Date and Time")
-        # Parse using the correct format - be more lenient
-        try:
+                    timestamp_found = True
+                    print("✅ Created timestamp column from Date and Time")
+                    # Parse using the correct format - be more lenient
+                    try:
                         chunk['timestamp'] = pd.to_datetime(chunk['timestamp'], format='%Y-%m-%d %H:%M:%S.%f', errors='coerce')
                         failed = chunk['timestamp'].isna().sum()
-            if failed > 0:
-                print(f"⚠️  {failed} timestamp conversions failed, but keeping rows with current timestamp.")
-                # Instead of dropping, fill failed conversions with current time
+                        if failed > 0:
+                            print(f"⚠️  {failed} timestamp conversions failed, but keeping rows with current timestamp.")
+                            # Instead of dropping, fill failed conversions with current time
                             chunk['timestamp'] = chunk['timestamp'].fillna(pd.Timestamp.now())
-            print(f"✅ Timestamp column converted to datetime format with custom format")
-        except Exception as e:
+                        print(f"✅ Timestamp column converted to datetime format with custom format")
+                    except Exception as e:
                         logging.error(f"Timestamp conversion failed for file {filepath}: {e}", exc_info=True)
-            print("🔧 Using current timestamp for all rows")
+                        print("🔧 Using current timestamp for all rows")
                         chunk['timestamp'] = pd.Timestamp.now()
-    else:
-        for timestamp_candidate in ["timestamp", "time", "date", "datetime"]:
+                else:
+                    for timestamp_candidate in ["timestamp", "time", "date", "datetime"]:
                         if timestamp_candidate in chunk.columns:
                             chunk.rename(columns={timestamp_candidate: "timestamp"}, inplace=True)
-                timestamp_found = True
-                print(f"✅ Found timestamp column: {timestamp_candidate} -> timestamp")
-                break
+                            timestamp_found = True
+                            print(f"✅ Found timestamp column: {timestamp_candidate} -> timestamp")
+                            break
     
-    if not timestamp_found:
-        print("⚠️  No timestamp column found, proceeding without timestamps.")
-    else:
-        # Robustly convert timestamp column to datetime - be more lenient
-        try:
+                if not timestamp_found:
+                    print("⚠️  No timestamp column found, proceeding without timestamps.")
+                else:
+                    # Robustly convert timestamp column to datetime - be more lenient
+                    try:
                         chunk["timestamp"] = pd.to_datetime(chunk["timestamp"], errors='coerce')
-            # Instead of dropping failed conversions, fill with current time
+                        # Instead of dropping failed conversions, fill with current time
                         failed = chunk["timestamp"].isna().sum()
-            if failed > 0:
-                print(f"⚠️  {failed} timestamp conversions failed, filling with current timestamp.")
+                        if failed > 0:
+                            print(f"⚠️  {failed} timestamp conversions failed, filling with current timestamp.")
                             chunk["timestamp"] = chunk["timestamp"].fillna(pd.Timestamp.now())
-            print(f"✅ Timestamp column converted to datetime format")
-        except Exception as e:
+                        print(f"✅ Timestamp column converted to datetime format")
+                    except Exception as e:
                         logging.error(f"Timestamp conversion failed for file {filepath}: {e}", exc_info=True)
-            print("🔧 Using current timestamp for all rows")
+                        print("🔧 Using current timestamp for all rows")
                         chunk["timestamp"] = pd.Timestamp.now()
 
-    # Clean up loglines - be very lenient with cleaning
+                # Clean up loglines - be very lenient with cleaning
                 chunk.dropna(subset=["logline"], inplace=True)
                 chunk = chunk[chunk["logline"].astype(str).str.strip() != ""]  # Remove empty strings
     
-    # For Android logs, be very lenient - only remove completely empty lines
+                # For Android logs, be very lenient - only remove completely empty lines
                 chunk = chunk[chunk["logline"].astype(str).str.strip().str.len() > 0]  # Keep any non-empty lines
     
-    # For Android logs, also check if we have meaningful content
+                # For Android logs, also check if we have meaningful content
                 if len(chunk) > 0:
-        # Check if we have any lines with typical log patterns
-        log_patterns = ['error', 'warning', 'info', 'debug', 'exception', 'failed', 'success', 'android', 'system', 'app', 'service', 'log', 'event', 'activity']
+                    # Check if we have any lines with typical log patterns
+                    log_patterns = ['error', 'warning', 'info', 'debug', 'exception', 'failed', 'success', 'android', 'system', 'app', 'service', 'log', 'event', 'activity']
                     has_log_patterns = chunk["logline"].astype(str).str.lower().str.contains('|'.join(log_patterns)).any()
         
-        if not has_log_patterns:
-            # If no typical log patterns, just keep all non-empty content
+                    if not has_log_patterns:
+                        # If no typical log patterns, just keep all non-empty content
                         non_empty_content = chunk[chunk["logline"].astype(str).str.strip().str.len() > 0]
-            if len(non_empty_content) == 0:
-                raise ValueError("❌ No valid log entries found after cleaning.")
-            else:
+                        if len(non_empty_content) == 0:
+                            raise ValueError("❌ No valid log entries found after cleaning.")
+                        else:
                             chunk = non_empty_content
                             print(f"⚠️  No typical log patterns found, but keeping {len(chunk)} non-empty entries")
-    else:
-        raise ValueError("❌ No valid log entries found after cleaning.")
+                else:
+                    raise ValueError("❌ No valid log entries found after cleaning.")
                 df_list.append(chunk)
             df = pd.concat(df_list) if df_list else pd.DataFrame()
         except Exception as e2:
@@ -205,7 +206,7 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
             print(f"✅ Timestamp column converted to datetime format")
         except Exception as e:
             logging.error(f"Timestamp conversion failed for file {filepath}: {e}", exc_info=True)
-            print("�� Using current time as fallback")
+            print("🔧 Using current time as fallback")
             df['timestamp'] = pd.Timestamp.now()
         # Save the updated DataFrame with proper datetime format
         df.to_csv(cleaned_path, index=False)
@@ -277,28 +278,17 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
         elif anomaly_count > len(results) * 0.8:  # More than 80% anomalies
             print(f"⚠️  Warning: High anomaly rate detected ({anomaly_count/len(results)*100:.1f}%).")
             print("🔍 This might be normal for your dataset, but consider trying different algorithms.")
-            print("🔍 Current results will be preserved.")
-        
-        # If no anomalies detected, this might be legitimate
-        elif anomaly_count == 0:
-            print("ℹ️  No anomalies detected in the logs.")
-            print("🔍 This could be legitimate - your logs may not contain actual anomalies")
-            print("🔍 The anomaly detection algorithms are working correctly")
-            print("🔍 Keeping original results")
-
-    # Add processing time metadata
+    
+    # Calculate processing time
     processing_time = time.time() - start_time
-    results['processing_time_seconds'] = processing_time
-    results['analysis_date'] = datetime.utcnow().isoformat()
-    results['file_processed'] = os.path.basename(filepath)
-
-    # Ensure uploads directory exists
-    os.makedirs("uploads", exist_ok=True)
-    result_filename = f"anomaly_results_{uuid.uuid4().hex[:8]}.csv"
-    result_path = os.path.join("uploads", result_filename)
-    results.to_csv(result_path, index=False)
-
-    send_to_elasticsearch(index_name, results)
-    return results, result_path
+    print(f"⏱️  Processing completed in {processing_time:.2f} seconds")
+    
+    # Send to Elasticsearch if available
+    try:
+        send_to_elasticsearch(index_name, results)
+    except Exception as e:
+        print(f"⚠️  Elasticsearch upload failed: {str(e)}")
+    
+    return results, processing_time
 
 

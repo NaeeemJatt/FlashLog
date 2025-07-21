@@ -1,10 +1,15 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, current_app
 from .helpers import compute_dashboard_metrics
 from werkzeug.utils import secure_filename
-from ..logai_handler import process_log_file
-from ..routes import log_user_activity
+from .logai_handler import process_log_file
+from .routes import log_user_activity
 from datetime import datetime
 import os
+from .auth import get_db_connection
+import uuid
+import json
+import pandas as pd
+import numpy as np
 
 # Create a blueprint for dashboard-related routes
 
@@ -20,7 +25,6 @@ def root():
     return redirect(url_for('dashboard.index'))
 
 @dashboard_bp.route('/dashboard', methods=['GET', 'POST'])
-@current_app.extensions['limiter'].limit('3 per minute')
 def index():
     # Authentication is now handled in before_request (should be moved to a decorator or middleware)
     if session.get('role') == 'admin':
@@ -55,35 +59,76 @@ def index():
         
         # Process
         try:
-            results, result_path = process_log_file(filepath, parser, model, index_name)
-            session['analysis_file'] = result_path
-            session['analysis_summary'] = {
-                'total_logs': len(results),
-                'total_anomalies': results['is_anomaly'].sum() if 'is_anomaly' in results else 0,
-                'index_name': index_name,
-                'parser': parser,
-                'model': model,
-                'created_at': datetime.now().isoformat()
-            }
-            # Log activity
-            user_id = session['user_id']
-            log_user_activity(
-                user_id=user_id,
-                activity_type='analysis',
-                description='Log file analyzed',
-                details=f'File: {filename}, Parser: {parser}, Model: {model}',
-                file_name=filename,
-                file_size=os.path.getsize(filepath),
-                anomalies_detected=session['analysis_summary']['total_anomalies'],
-                total_logs=session['analysis_summary']['total_logs']
-            )
-            flash('Analysis complete!', 'success')
-            return redirect(url_for('upload.analyzed_logs'))
+            try:
+                results, _ = process_log_file(filepath, parser, model, index_name)
+                print(f"[DEBUG] Results type: {type(results)}, length: {len(results)}")
+                # Convert all timestamps to strings for JSON serialization
+                def convert_timestamps(obj):
+                    if isinstance(obj, pd.DataFrame):
+                        for col in obj.columns:
+                            if np.issubdtype(obj[col].dtype, np.datetime64):
+                                obj[col] = obj[col].astype(str)
+                            elif obj[col].dtype == 'object':
+                                obj[col] = obj[col].apply(lambda x: str(x) if isinstance(x, (pd.Timestamp, np.datetime64)) else x)
+                        return obj
+                    elif isinstance(obj, list):
+                        return [convert_timestamps(x) for x in obj]
+                    elif isinstance(obj, dict):
+                        return {k: convert_timestamps(v) for k, v in obj.items()}
+                    elif isinstance(obj, (pd.Timestamp, np.datetime64)):
+                        return str(obj)
+                    return obj
+                results = convert_timestamps(results)
+                # Save to DB
+                run_id = str(uuid.uuid4())
+                results_json = json.dumps(results.to_dict(orient='records') if hasattr(results, 'to_dict') else list(results))
+                conn = get_db_connection()
+                conn.execute('INSERT INTO analysis_runs (run_id, user_id, results_json) VALUES (?, ?, ?)', (run_id, session['user_id'], results_json))
+                conn.commit()
+                conn.close()
+                print(f"[DEBUG] Saved results to DB with run_id: {run_id}")
+                session['current_run'] = run_id
+                session['analysis_summary'] = {
+                    'total_logs': len(results),
+                    'total_anomalies': results['is_anomaly'].sum() if hasattr(results, 'is_anomaly') else 0,
+                    'index_name': index_name,
+                    'parser': parser,
+                    'model': model,
+                    'created_at': datetime.now().isoformat()
+                }
+                print(f"[DEBUG] session['current_run'] set to {run_id}")
+                print(f"[DEBUG] session['analysis_summary'] set")
+                session.modified = True  # Force session to save changes
+                print("[DEBUG] Redirecting to /analyzed-logs (DB save path)")
+                return redirect(url_for('upload.analyzed_logs'))
+            except Exception as e:
+                print(f"[DEBUG] Error during DB save/session set: {str(e)}")
+                flash(f'Error saving analysis results: {str(e)}', 'error')
+                # Fallback: store a small sample in session for debugging
+                try:
+                    sample = results.head(5).to_dict(orient='records') if hasattr(results, 'head') else list(results)[:5]
+                    session['analysis_results'] = sample
+                    session['analysis_summary'] = {
+                        'total_logs': len(sample),
+                        'total_anomalies': sample[0].get('is_anomaly', 0) if sample else 0,
+                        'index_name': index_name,
+                        'parser': parser,
+                        'model': model,
+                        'created_at': datetime.now().isoformat()
+                    }
+                    session.modified = True
+                    print("[DEBUG] Fallback: stored sample in session, redirecting to /analyzed-logs")
+                    return redirect(url_for('upload.analyzed_logs'))
+                except Exception as e2:
+                    print(f"[DEBUG] Fallback error: {str(e2)}")
+                    flash(f'Critical error: {str(e2)}', 'error')
+                    print("[DEBUG] Redirecting to /dashboard (critical error path)")
+                    return redirect(url_for('dashboard.index'))
         except Exception as e:
-            flash(f'Error processing file: {str(e)}', 'error')
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            return redirect(request.url)
+            print(f"[DEBUG] Outer error: {str(e)}")
+            flash(f'Unexpected error: {str(e)}', 'error')
+            print("[DEBUG] Redirecting to /dashboard (outer error path)")
+            return redirect(url_for('dashboard.index'))
     return render_template('index.html', metrics=dashboard_metrics)
 
 def allowed_file(filename):

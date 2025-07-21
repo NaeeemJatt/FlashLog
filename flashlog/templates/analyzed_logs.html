@@ -109,7 +109,7 @@
                 <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <div class="flex flex-col sm:flex-row gap-4 justify-center">
                         <div class="text-center">
-                            <a href="{{ url_for('main.analysis_dashboard') }}" 
+                            <a href="{{ url_for('upload.analysis_dashboard') }}" 
                                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -122,12 +122,12 @@
                         </div>
                         
                         <div class="text-center">
-                            <a href="{{ url_for('main.kibana_dashboard') }}" 
+                            <a href="{{ url_for('main.flashlog_dashboard') }}" 
                                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                                 </svg>
-                                Kibana Dashboard
+                                FlashLog Dashboard
                             </a>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
                                 Time-series analytics and metrics
@@ -196,7 +196,7 @@
             <div class="mt-6 flex items-center justify-center space-x-2 zoom-in-delay-4">
                 <!-- Previous Page -->
                 {% if pagination.page > 1 %}
-                <a href="{{ url_for('main.analyzed_logs', page=pagination.page-1) }}" 
+                <a href="{{ url_for('upload.analyzed_logs', page=pagination.page-1) }}" 
                    class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                     ← Previous
                 </a>
@@ -213,7 +213,7 @@
                         {{ page_num }}
                     </span>
                     {% elif page_num <= 3 or page_num > pagination.total_pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
-                    <a href="{{ url_for('main.analyzed_logs', page=page_num) }}" 
+                    <a href="{{ url_for('upload.analyzed_logs', page=page_num) }}" 
                        class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                         {{ page_num }}
                     </a>
@@ -228,7 +228,7 @@
                 <div class="flex items-center space-x-2 ml-4" 
                      data-total-pages="{{ pagination.total_pages }}" 
                      data-current-page="{{ pagination.page }}" 
-                     data-base-url="{{ url_for('main.analyzed_logs') }}">
+                     data-base-url="{{ url_for('upload.analyzed_logs') }}">
                     <span class="text-sm text-gray-600 dark:text-gray-400">Go to:</span>
                     <div class="flex items-center space-x-1">
                         <input type="number" 
@@ -249,7 +249,7 @@
 
                 <!-- Next Page -->
                 {% if pagination.page < pagination.total_pages %}
-                <a href="{{ url_for('main.analyzed_logs', page=pagination.page+1) }}" 
+                <a href="{{ url_for('upload.analyzed_logs', page=pagination.page+1) }}" 
                    class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                     Next →
                 </a>

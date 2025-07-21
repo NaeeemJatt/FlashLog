@@ -2,28 +2,46 @@ from flask import Blueprint, render_template, session, redirect, url_for, flash,
 import os
 import pandas as pd
 from datetime import datetime
+from .auth import get_db_connection
+import json
 
 upload_bp = Blueprint('upload', __name__)
 
 @upload_bp.route('/analyzed-logs')
 def analyzed_logs():
     if 'user_id' not in session:
+        print("[DEBUG] No user_id in session - redirecting to auth")
         flash('Please log in to view analysis results.', 'error')
         return redirect(url_for('auth.auth_page'))
     page = request.args.get('page', 1, type=int)
     per_page = 10
-    analysis_file = session.get('analysis_file')
-    kibana_url = session.get('kibana_url')
     analysis_summary = session.get('analysis_summary', {})
-    if not analysis_file or not os.path.exists(analysis_file):
-        flash('No analysis results found. Please upload and analyze a log file first.')
-        return redirect(url_for('dashboard.index'))
+    print(f"[DEBUG] Session keys on load: {list(session.keys())}")
+    run_id = session.get('current_run')
+    print(f"[DEBUG] run_id in session: {run_id}")
+    if not run_id:
+        print("[DEBUG] No run_id in session - redirecting to dashboard")
+        flash('No analysis run found. Please analyze a log file first.')
+        return redirect('/dashboard')
     try:
-        results_df = pd.read_csv(analysis_file)
-        results = results_df.to_dict(orient='records')
+        conn = get_db_connection()
+        row = conn.execute('SELECT results_json FROM analysis_runs WHERE run_id = ?', (run_id,)).fetchone()
+        conn.close()
+        if not row:
+            print("[DEBUG] No results found in DB for run_id - redirecting")
+            flash('Analysis results expired or not found.')
+            return redirect('/dashboard')
+        analysis_results = json.loads(row['results_json'])
+        print(f"[DEBUG] Loaded results from DB, length: {len(analysis_results)}")
     except Exception as e:
-        flash('Error loading analysis results. Please try again.', 'error')
-        return redirect(url_for('dashboard.index'))
+        print(f"[DEBUG] Error loading from DB: {str(e)}")
+        flash('Error loading analysis results from storage.', 'error')
+        return redirect('/dashboard')
+    if not analysis_results or not isinstance(analysis_results, list):
+        print("[DEBUG] Loaded results invalid - redirecting")
+        flash('Invalid analysis results.')
+        return redirect('/dashboard')
+    results = analysis_results
     total_results = len(results)
     total_pages = (total_results + per_page - 1) // per_page
     start_idx = (page - 1) * per_page
@@ -31,8 +49,8 @@ def analyzed_logs():
     paginated_results = results[start_idx:end_idx]
     response = make_response(render_template('analyzed_logs.html',
                          results=paginated_results,
-                         csv_path=analysis_file,
-                         kibana_url=kibana_url,
+                         csv_path=None,
+                         kibana_url=session.get('kibana_url'),
                          analysis_summary=analysis_summary,
                          pagination={
                              'page': page,
@@ -55,15 +73,15 @@ def analysis_dashboard(analysis_id=None):
         return redirect(url_for('auth.auth_page'))
     analysis_file = session.get('analysis_file')
     analysis_summary = session.get('analysis_summary', {})
-    if not analysis_file or not os.path.exists(analysis_file):
+    if not analysis_file or not isinstance(analysis_file, str) or not os.path.exists(analysis_file):
         flash('No analysis results found. Please upload and analyze a log file first.', 'error')
-        return redirect(url_for('dashboard.index'))
+        return redirect('/dashboard')
     try:
         results_df = pd.read_csv(analysis_file)
         results = results_df.to_dict(orient='records')
     except Exception as e:
         flash('Error loading analysis results. Please try again.', 'error')
-        return redirect(url_for('dashboard.index'))
+        return redirect('/dashboard')
     analysis = {
         'id': analysis_id or analysis_summary.get('analysis_id', 'current'),
         'user_id': session['user_id'],

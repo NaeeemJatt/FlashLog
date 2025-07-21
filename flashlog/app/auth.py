@@ -46,6 +46,17 @@ def init_db():
         )
     ''')
     
+    # Create analysis_runs table for storing analysis results
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS analysis_runs (
+            run_id TEXT PRIMARY KEY,
+            user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            results_json TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
     # Create user activity table for tracking user actions
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_activities (
@@ -79,7 +90,6 @@ def get_db_connection():
     return conn
 
 @auth.route('/register', methods=['GET', 'POST'])
-@current_app.extensions['limiter'].limit('10 per hour')
 def register():
     """User registration"""
     if request.method == 'POST':
@@ -177,7 +187,6 @@ def register():
     return render_template('auth/auth.html')
 
 @auth.route('/login', methods=['GET', 'POST'])
-@current_app.extensions['limiter'].limit('5 per minute')
 def login():
     """User login"""
     if request.method == 'POST':

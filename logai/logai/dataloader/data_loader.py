@@ -89,9 +89,9 @@ class FileDataLoader:
             ts_df = pd.DataFrame(df['timestamp'])
             ts_df.columns = [constants.LOG_TIMESTAMPS]
             if self.config.infer_datetime:
-                ts_df[constants.LOG_TIMESTAMPS] = pd.to_datetime(ts_df[constants.LOG_TIMESTAMPS], errors='coerce')
+                ts_df.loc[:, constants.LOG_TIMESTAMPS] = pd.to_datetime(ts_df[constants.LOG_TIMESTAMPS], errors='coerce')
                 if ts_df[constants.LOG_TIMESTAMPS].isna().any():
-                    ts_df[constants.LOG_TIMESTAMPS] = ts_df[constants.LOG_TIMESTAMPS].fillna(pd.Timestamp.now())
+                    ts_df.loc[ts_df[constants.LOG_TIMESTAMPS].isna(), constants.LOG_TIMESTAMPS] = pd.Timestamp.now()
             setattr(log_record, 'timestamp', ts_df)
         
         if not dims:
@@ -131,15 +131,12 @@ class FileDataLoader:
                             )
                         selected.columns = [constants.LOG_TIMESTAMPS]
                         if self.config.infer_datetime:
-
-                            selected[constants.LOG_TIMESTAMPS] = pd.to_datetime(
+                            selected.loc[:, constants.LOG_TIMESTAMPS] = pd.to_datetime(
                                 selected[constants.LOG_TIMESTAMPS],
                                 errors='coerce'
                             )
-
                             if selected[constants.LOG_TIMESTAMPS].isna().any():
-                                selected[constants.LOG_TIMESTAMPS] = selected[constants.LOG_TIMESTAMPS].fillna(pd.Timestamp.now())
-
+                                selected.loc[selected[constants.LOG_TIMESTAMPS].isna(), constants.LOG_TIMESTAMPS] = pd.Timestamp.now()
                     setattr(log_record, field, selected)
 
         return log_record

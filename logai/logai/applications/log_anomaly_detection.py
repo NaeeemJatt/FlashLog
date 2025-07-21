@@ -61,10 +61,11 @@ class LogAnomalyDetection:
             res = self._loglines_with_anomalies.copy()
             
             if self.attributes is not None and not self.attributes.empty:
-                res = res.join(self.attributes)
+                res = res.join(self.attributes, rsuffix='_attr')
             
             if self.timestamps is not None and not self.timestamps.empty:
-                res = res.join(self.timestamps)
+                # Use suffixes to avoid column overlap
+                res = res.join(self.timestamps, rsuffix='_ts')
             
             try:
                 event_group = self.event_group

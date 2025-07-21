@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlashLog - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold text-gray-900">FlashLog AI</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-700">Welcome, {{ session.username }}!</span>
+                    <a href="/summarize-ui" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        AI Summarization
+                    </a>
+                    <a href="/logout" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">AI-Powered Log Analysis</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-blue-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-blue-900 mb-2">AI Summarization</h3>
+                        <p class="text-blue-700 mb-4">
+                            Use our local T5-Small model to generate intelligent summaries of your log data.
+                        </p>
+                        <a href="/summarize-ui" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                            Try AI Summarization
+                        </a>
+                    </div>
+                    
+                    <div class="bg-green-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-green-900 mb-2">Features</h3>
+                        <ul class="text-green-700 space-y-1">
+                            <li>✅ Local AI model (no external APIs)</li>
+                            <li>✅ Multiple log format support</li>
+                            <li>✅ Intelligent summarization</li>
+                            <li>✅ Real-time processing</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="mt-6 bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Quick Test</h3>
+                    <p class="text-gray-700 mb-4">
+                        Test the AI summarization with sample log data:
+                    </p>
+                    <button onclick="testSummarization()" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+                        Test AI Summarization
+                    </button>
+                    <div id="test-result" class="mt-4 hidden">
+                        <h4 class="font-semibold text-gray-900">Result:</h4>
+                        <div id="summary-text" class="bg-white p-3 rounded border mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function testSummarization() {
+            const testLogs = "Error at 2024-01-01 10:30:45 - Database connection failed. Warning at 2024-01-01 10:31:00 - Retrying connection. Error at 2024-01-01 10:32:15 - Connection timeout. Info at 2024-01-01 10:33:00 - Service restarted successfully.";
+            
+            try {
+                const response = await fetch(`/summarize?logs=${encodeURIComponent(testLogs)}`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('summary-text').textContent = result.summary;
+                    document.getElementById('test-result').classList.remove('hidden');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error testing summarization: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html> 

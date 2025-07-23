@@ -9,6 +9,7 @@ from .auth import login_required, get_current_user, get_db_connection
 import numpy as np
 from collections import Counter
 from transformers import pipeline
+from .helpers import classify_all_anomalies
 
 def log_user_activity(user_id, activity_type, description, details=None, status='success', ip_address=None, user_agent=None, file_name=None, file_size=None, processing_time=None, anomalies_detected=None, total_logs=None, old_value=None, new_value=None):
     """Log user activity to the database with enhanced tracking"""
@@ -318,6 +319,29 @@ def get_latest_activities():
     response.headers['Expires'] = '0'
     return response
 
+def generate_ai_summary(loglines, anomaly_types, mitigation_map):
+    from transformers import pipeline
+    import os
+    model_path = 'flashlog/models/t5-small'
+    if not os.path.exists(model_path):
+        return 'Local AI model not found. Please download the model.'
+    summarizer = pipeline('summarization', model=model_path)
+    # Truncate if too long
+    log_data = ' '.join(loglines)
+    if len(log_data) > 5000:
+        log_data = log_data[:5000] + "..."
+    # Compose prompt for T5
+    prompt = (
+        "You are an expert security analyst. Read the following log entries and generate a concise executive summary. "
+        "Highlight key events, detected anomalies, and any security-relevant findings. "
+        "Also, summarize the number of critical anomalies and list mitigation strategies for each anomaly type found.\n\n"
+        f"Log Entries: {log_data}\n\n"
+        f"Anomaly Types: {', '.join(anomaly_types)}\n\n"
+        f"Mitigation Strategies: " + ' '.join([f"{atype}: {mitigation_map.get(atype, 'N/A')}" for atype in anomaly_types])
+    )
+    summary = summarizer(prompt, max_length=180, min_length=60, do_sample=False)[0]['summary_text']
+    return summary
+
 @main.route('/flashlog-dashboard')
 @login_required
 def flashlog_dashboard():
@@ -354,9 +378,111 @@ def flashlog_dashboard():
         return redirect(url_for('dashboard.index'))
     # Process data for Kibana-style dashboard
     kibana_data = process_kibana_dashboard_data(analysis_results)
+    # Extract summary, severity_counts, anomaly_types for dashboard template
+    analysis_summary = kibana_data.get('summary', {})
+    # Severity counts: build dict with keys Critical, High, Medium, Low
+    import collections
+    severity_counts = collections.defaultdict(int)
+    if 'table_data' in kibana_data:
+        for row in kibana_data['table_data']:
+            sev = row.get('severity')
+            if sev:
+                severity_counts[sev] += 1
+    # Ensure all keys exist
+    for k in ['Critical', 'High', 'Medium', 'Low']:
+        severity_counts[k] = severity_counts.get(k, 0)
+    # Anomaly types
+    anomaly_types = collections.Counter()
+    if 'table_data' in kibana_data:
+        for row in kibana_data['table_data']:
+            atype = row.get('anomaly_type')
+            if atype:
+                anomaly_types[atype] += 1
+    mitigation_map = {}
+    if 'table_data' in kibana_data:
+        for row in kibana_data['table_data']:
+            atype = row.get('anomaly_type')
+            if atype:
+                mitigation_map[atype] = row.get('mitigation')
+    # AI summary: always generate if not present
+    loglines = [row['logline'] for row in kibana_data.get('table_data', [])[:50] if row.get('logline')]
+    ai_summary = generate_ai_summary(loglines, list(anomaly_types.keys()), mitigation_map)
     return render_template('flashlog_dashboard.html', 
+                         analysis_summary=analysis_summary,
+                         severity_counts=dict(severity_counts),
+                         anomaly_types=dict(anomaly_types),
                          kibana_data=kibana_data,
-                         results=analysis_results)
+                         results=analysis_results,
+                         ai_summary=ai_summary)
+
+@main.route('/api/dashboard-data')
+@login_required
+def api_dashboard_data():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    run_id = session.get('current_run')
+    if not run_id:
+        return jsonify({'error': 'No analysis run found'}), 404
+    try:
+        from .auth import get_db_connection
+        import json
+        conn = get_db_connection()
+        row = conn.execute('SELECT results_json FROM analysis_runs WHERE run_id = ?', (run_id,)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'No results found'}), 404
+        analysis_results = json.loads(row['results_json'])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    if not analysis_results or not isinstance(analysis_results, list):
+        return jsonify({'error': 'Invalid analysis results'}), 400
+    kibana_data = process_kibana_dashboard_data(analysis_results)
+    # Compose response
+    summary = kibana_data.get('summary', {})
+    normal_count = summary.get('normal_count', summary.get('normal_logs', 0))
+    anomaly_count = summary.get('anomaly_count', 0)
+    # Severity counts
+    import collections
+    severity_counts = collections.defaultdict(int)
+    if 'table_data' in kibana_data:
+        for row in kibana_data['table_data']:
+            sev = row.get('severity')
+            if sev:
+                severity_counts[sev] += 1
+    for k in ['Critical', 'High', 'Medium', 'Low']:
+        severity_counts[k] = severity_counts.get(k, 0)
+    # Time series
+    time_series = kibana_data.get('time_series', {})
+    # Table data
+    table_data = kibana_data.get('table_data', [])
+    # Get only anomalies (not all loglines)
+    anomalies = [row.get('logline') for row in table_data if row.get('is_anomaly') or row.get('is_anomaly') == 1]
+    # Use session to cache external API results for this run
+    cache_key = f'anomaly_types_{run_id}'
+    anomaly_types = session.get(cache_key)
+    if anomaly_types is None:
+        # Fetch anomaly types from external API (only for anomalies, split equally among all APIs for speed)
+        external_results = classify_all_anomalies(anomalies)
+        anomaly_types = []
+        for item in external_results:
+            if isinstance(item, dict):
+                anomaly_types.append({
+                    'type': item.get('type'),
+                    'severity': item.get('severity'),
+                    'count': item.get('count')
+                })
+        session[cache_key] = anomaly_types
+    # AI summary: skipped for now
+    # ai_summary = generate_ai_summary(anomalies, [a['type'] for a in anomaly_types if 'type' in a], {a['type']: a['severity'] for a in anomaly_types if 'type' in a and 'severity' in a})
+    return jsonify({
+        'normal_count': normal_count,
+        'anomaly_count': anomaly_count,
+        'severity_counts': dict(severity_counts),
+        'time_series': time_series,
+        'table_data': table_data,
+        'anomaly_types': anomaly_types
+        # 'ai_summary': ai_summary  # Skipped for now
+    })
 
 def process_kibana_dashboard_data(results):
     """Process analysis results for Kibana-style dashboard visualizations"""

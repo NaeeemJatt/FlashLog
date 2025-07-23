@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}FlashLog Visualisation Dashboard{% endblock %}
+{% block content %}
+<div class="container mx-auto py-6 px-2">
+  <!-- Top: 3 Graphs -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <!-- Anomaly Count Pie -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col items-center">
+      <h2 class="text-lg font-semibold text-center mb-2">Anomaly Count</h2>
+      <canvas id="anomalyChart" class="w-full max-w-xs"></canvas>
+    </div>
+    <!-- Vulnerability Severity Bar -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col items-center">
+      <h2 class="text-lg font-semibold text-center mb-2">Vulnerability Count</h2>
+      <canvas id="vulnChart" class="w-full max-w-xs"></canvas>
+    </div>
+    <!-- Anomaly Type Line -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col items-center">
+      <h2 class="text-lg font-semibold text-center mb-2">Anomaly Type Over Time</h2>
+      <canvas id="anomalyTypeChart" class="w-full max-w-xs"></canvas>
+    </div>
+  </div>
+  <!-- Bottom: Table and AI Summary -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Logs Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 overflow-x-auto">
+      <h2 class="text-lg font-semibold mb-4">Logs Information</h2>
+      <table class="min-w-full table-auto border-collapse" id="logsTable">
+        <thead class="bg-sky-600 text-white">
+          <tr>
+            <th class="px-4 py-2">Timestamp</th>
+            <th class="px-4 py-2">Log</th>
+            <th class="px-4 py-2">Anomaly</th>
+            <th class="px-4 py-2">Severity</th>
+          </tr>
+        </thead>
+        <tbody class="text-gray-700 dark:text-gray-200" id="logsTableBody">
+          {% for row in kibana_data.table_data %}
+          <tr class="hover:bg-sky-100 dark:hover:bg-gray-700">
+            <td class="px-4 py-2 whitespace-nowrap">{{ row.timestamp }}</td>
+            <td class="px-4 py-2 max-w-xs truncate">{{ row.logline }}</td>
+            <td class="px-4 py-2">{{ row.anomaly_type }}</td>
+            <td class="px-4 py-2">{{ row.severity }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <!-- AI Summary -->
+    <div class="bg-gray-100 dark:bg-gray-900 rounded-md shadow p-4 flex flex-col justify-center items-center min-h-[200px]">
+      <h2 class="font-bold text-lg mb-2 text-gray-800 dark:text-gray-100">AI Summary</h2>
+      <p class="text-gray-600 dark:text-gray-300 italic" id="aiSummary">{{ ai_summary or 'No summary available.' }}</p>
+    </div>
+  </div>
+</div>
+<script>
+// Initial chart data from server-rendered context
+const anomalyChartData = {
+  labels: ['Normal Logs', 'Anomalies'],
+  datasets: [{
+    data: [{{ analysis_summary.normal_count or (analysis_summary.total_logs or 1000) - (analysis_summary.anomaly_count or 0) }}, {{ analysis_summary.anomaly_count or 0 }}],
+    backgroundColor: ['#22c55e', '#ef4444']
+  }]
+};
+const vulnChartData = {
+  labels: ['Critical', 'High', 'Medium', 'Low'],
+  datasets: [{
+    label: 'Count',
+    data: [
+      {{ severity_counts['Critical'] if severity_counts and 'Critical' in severity_counts else 0 }},
+      {{ severity_counts['High'] if severity_counts and 'High' in severity_counts else 0 }},
+      {{ severity_counts['Medium'] if severity_counts and 'Medium' in severity_counts else 0 }},
+      {{ severity_counts['Low'] if severity_counts and 'Low' in severity_counts else 0 }}
+    ],
+    backgroundColor: ['#dc2626', '#f59e42', '#fbbf24', '#38bdf8']
+  }]
+};
+const anomalyTypeChartData = {
+  labels: {{ kibana_data.time_series.time_points|tojson }},
+  datasets: [
+    {% if kibana_data.time_series.anomaly_types is defined and kibana_data.time_series.anomaly_types %}
+      {% for atype, series in kibana_data.time_series.anomaly_types.items() %}
+      {
+        label: '{{ atype }}',
+        data: {{ series|tojson }},
+        fill: false,
+        borderColor: '{{ ['#a21caf', '#2563eb', '#059669', '#eab308', '#64748b'][loop.index0 % 5] }}',
+        tension: 0.3
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    {% endif %}
+  ]
+};
+// Chart.js instances
+const anomalyChart = new Chart(document.getElementById('anomalyChart'), { type: 'pie', data: anomalyChartData, options: {responsive: true, plugins: {legend: {position: 'bottom'}}}});
+const vulnChart = new Chart(document.getElementById('vulnChart'), { type: 'bar', data: vulnChartData, options: {responsive: true, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}});
+const anomalyTypeChart = new Chart(document.getElementById('anomalyTypeChart'), { type: 'line', data: anomalyTypeChartData, options: {responsive: true, plugins: {legend: {position: 'bottom'}}, scales: {y: {beginAtZero: true}}}});
+// Polling for real-time updates
+async function fetchDashboardData() {
+  const resp = await fetch('/api/dashboard-data');
+  if (!resp.ok) return;
+  const data = await resp.json();
+  // Update Pie
+  anomalyChart.data.datasets[0].data = [data.normal_count, data.anomaly_count];
+  anomalyChart.update();
+  // Update Bar
+  vulnChart.data.datasets[0].data = [data.severity_counts.Critical, data.severity_counts.High, data.severity_counts.Medium, data.severity_counts.Low];
+  vulnChart.update();
+  // Update Line
+  anomalyTypeChart.data.labels = data.time_series.time_points;
+  anomalyTypeChart.data.datasets = data.time_series.anomaly_types.map((series, i) => ({
+    label: series.label,
+    data: series.data,
+    fill: false,
+    borderColor: ['#a21caf', '#2563eb', '#059669', '#eab308', '#64748b'][i % 5],
+    tension: 0.3
+  }));
+  anomalyTypeChart.update();
+  // Update Table
+  const tbody = document.getElementById('logsTableBody');
+  tbody.innerHTML = data.table_data.map(row => `
+    <tr class="hover:bg-sky-100 dark:hover:bg-gray-700">
+      <td class="px-4 py-2 whitespace-nowrap">${row.timestamp}</td>
+      <td class="px-4 py-2 max-w-xs truncate">${row.logline}</td>
+      <td class="px-4 py-2">${row.anomaly_type}</td>
+      <td class="px-4 py-2">${row.severity}</td>
+    </tr>
+  `).join('');
+  // Update AI Summary
+  document.getElementById('aiSummary').textContent = data.ai_summary || 'No summary available.';
+}
+setInterval(fetchDashboardData, 10000); // Poll every 10 seconds
+</script>
+{% endblock %} 

@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="mb-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Log File: <span class="font-mono">sample.log</span></h2>
+            <p class="text-gray-600 dark:text-gray-300">Total Logs: <span class="font-semibold">10,000</span></p>
+        </div>
+        <div class="mt-4 md:mt-0">
+            <span class="inline-block bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium">Analyzed: 2024-06-01 14:30</span>
+        </div>
+    </div>
+    <!-- Anomaly Count Donut Chart -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6 flex flex-col items-center">
+        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Anomaly Count</h3>
+        <div class="w-full flex justify-center">
+            <canvas id="anomalyCountChart" class="max-w-lg w-full"></canvas>
+        </div>
+    </div>
+    <!-- Two charts side by side on desktop, stacked on mobile -->
+    <div class="flex flex-col lg:flex-row gap-6">
+        <!-- Vulnerability Severity Chart -->
+        <div class="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col items-center">
+            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Vulnerability Severity</h3>
+            <div class="w-full">
+                <canvas id="severityChart" class="max-w-md w-full"></canvas>
+            </div>
+        </div>
+        <!-- Anomaly Type Distribution Chart -->
+        <div class="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col items-center">
+            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Anomaly Type Distribution</h3>
+            <div class="w-full">
+                <canvas id="anomalyTypeChart" class="max-w-md w-full"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+// Anomaly Count Donut Chart
+const anomalyCountCtx = document.getElementById('anomalyCountChart').getContext('2d');
+new Chart(anomalyCountCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Anomalies', 'Normal Logs'],
+        datasets: [{
+            data: [120, 9880],
+            backgroundColor: ['#ef4444', '#22d3ee'],
+            hoverOffset: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: true, position: 'bottom', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--tw-prose-invert') ? '#fff' : '#222' } },
+            tooltip: { enabled: true }
+        },
+        animation: { animateRotate: true, animateScale: true }
+    }
+});
+// Vulnerability Severity Horizontal Bar Chart
+const severityCtx = document.getElementById('severityChart').getContext('2d');
+new Chart(severityCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Critical', 'High', 'Medium', 'Low'],
+        datasets: [{
+            label: 'Count',
+            data: [10, 30, 50, 30],
+            backgroundColor: ['#dc2626', '#f59e42', '#fbbf24', '#38bdf8'],
+            borderRadius: 8,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true }
+        },
+        scales: {
+            x: { ticks: { color: '#888' }, grid: { color: '#eee' } },
+            y: { ticks: { color: '#888' }, grid: { color: '#eee' } }
+        },
+        animation: { duration: 900, easing: 'easeOutBounce' }
+    }
+});
+// Anomaly Type Distribution Chart
+const anomalyTypeCtx = document.getElementById('anomalyTypeChart').getContext('2d');
+new Chart(anomalyTypeCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Brute Force', 'Access Control', 'SQL Injection', 'XSS', 'Other'],
+        datasets: [{
+            data: [20, 15, 10, 8, 67],
+            backgroundColor: ['#a21caf', '#2563eb', '#059669', '#eab308', '#64748b'],
+            hoverOffset: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: true, position: 'bottom', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--tw-prose-invert') ? '#fff' : '#222' } },
+            tooltip: { enabled: true }
+        },
+        animation: { animateRotate: true, animateScale: true }
+    }
+});
+</script>
+{% endblock %} 

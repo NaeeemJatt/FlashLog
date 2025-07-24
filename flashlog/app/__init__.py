@@ -4,20 +4,29 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import secrets
 import os
+from datetime import timedelta
 
 def create_app():
     app = Flask(__name__)
     app.config['UPLOAD_FOLDER'] = 'uploads'
     
-    # Generate secure secret key - use environment variable in production
-    app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+    # Force session cookie settings for local development
+    app.config['SESSION_COOKIE_SECURE'] = False  # Always False for local dev
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
     
-    # Determine environment
-    env = os.environ.get('FLASK_ENV', 'development')
+    # Set the template folder explicitly to ensure correct path
+    app.template_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
+    
+    # Generate secure secret key directly (no reliance on environment)
+    app.secret_key = 'NaeemJatt027@@'  # Set static secret key for session management
+    
+    # Determine environment (hardcoded to development if needed)
+    env = 'development'
     is_production = env == 'production'
     
     # Configure session settings
-    app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)  # 1 hour
     app.config['SESSION_COOKIE_SECURE'] = is_production  # Secure in production
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Strict' if is_production else 'Lax'  # Stricter in production

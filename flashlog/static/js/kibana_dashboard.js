@@ -1,6 +1,57 @@
 // FlashLog Dashboard JS
 
+// Function to load dashboard data once on page load
+function loadDashboardData() {
+    console.log('Loading dashboard data...');
+    fetch('/api/dashboard-data', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Dashboard data loaded:', data);
+        // Update dashboard UI with the data
+        updateDashboardUI(data);
+    })
+    .catch(error => {
+        console.error('Error loading dashboard data:', error);
+    });
+}
+
+// Function to update dashboard UI
+function updateDashboardUI(data) {
+    // Assuming data contains anomalyTypes
+    const anomalyTypes = data.anomalyTypes || [];
+    // Update the DOM with anomaly data
+    const anomalyList = document.getElementById('anomaly-types-list');
+    if (anomalyList) {
+        anomalyList.innerHTML = '';
+        anomalyTypes.forEach(anomaly => {
+            const listItem = document.createElement('li');
+            listItem.textContent = `${anomaly.type} (Severity: ${anomaly.severity}, Count: ${anomaly.count})`;
+            anomalyList.appendChild(listItem);
+        });
+    } else {
+        console.warn('Anomaly list element not found in DOM');
+    }
+    // Add other UI updates as needed
+}
+
+// Load data once on page load
 document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    // Remove any existing interval or polling mechanism
+    // Comment out or remove any setInterval or setTimeout for periodic updates
+    // e.g., clearInterval(window.dashboardInterval); if it exists
+    console.log('Dashboard initialized, no periodic updates scheduled.');
+
     // Chart.js Pie for Anomaly vs Total Logs
     const anomalyTotalChart = new Chart(document.getElementById('anomalyTotalChart').getContext('2d'), {
         type: 'pie',

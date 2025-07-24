@@ -73,26 +73,26 @@ def compute_dashboard_metrics():
 
 def build_anomaly_prompt(anomalies):
     """
-    Build a detailed prompt for the LLM to classify anomaly types, severity, and count.
+    Build a prompt for the external API to classify log anomalies.
     """
-    if not anomalies:
-        return "No anomalies provided."
-    if isinstance(anomalies[0], dict):
-        anomaly_text = "\n".join([str(a) for a in anomalies])
-    else:
-        anomaly_text = "\n".join(anomalies)
+    total_anomalies = len(anomalies)
     prompt = (
-        "You are a cybersecurity expert. Analyze the following log anomalies and provide a structured summary.\n\n"
-        "For each unique anomaly type, return:\n"
-        "- The anomaly type (as a short label)\n"
-        "- The severity (Critical, High, Medium, Low)\n"
-        "- The count of occurrences\n\n"
-        "Format your response as a JSON array, where each item has 'type', 'severity', and 'count'.\n\n"
-        "Anomalies:\n"
-        f"{anomaly_text}\n\n"
-        "Example response:\n"
-        '[{"type": "SQL Injection", "severity": "Critical", "count": 3}, {"type": "Brute Force", "severity": "High", "count": 2}]'
+        "You are an expert in log analysis and anomaly detection. "
+        "I have a list of log anomalies from a system, and I need you to analyze them and classify each anomaly into distinct types. "
+        "For each type of anomaly, provide a severity level (Critical, High, Medium, Low) and the count of how many times this type appears in the provided logs. "
+        "Please respond ONLY with a JSON array of objects, where each object has the following structure: "
+        "{'type': string, 'severity': string, 'count': integer}. "
+        "Do not include any explanatory text or additional formatting outside the JSON array. "
+        "Ensure that the sum of the 'count' values in your response equals the total number of anomalies provided (" + str(total_anomalies) + "), "
+        "so that every anomaly is accounted for in one of the types. "
+        "If some anomalies cannot be classified into a specific type, include them under a type labeled 'Unclassified' with an appropriate severity. "
+        "If there are no anomalies to classify, return an empty JSON array []. "
+        "Here are the log anomalies for analysis (total: " + str(total_anomalies) + "):\n\n"
     )
+    for i, anomaly in enumerate(anomalies, 1):
+        log_line = anomaly.get('logline', str(anomaly))
+        prompt += f"Anomaly {i}: {log_line}\n"
+    prompt += "\nPlease classify these anomalies and return the result as a JSON array, ensuring the sum of counts matches the total (" + str(total_anomalies) + ")."
     return prompt
 
 
@@ -108,13 +108,16 @@ def classify_anomalies_worker(anomaly_chunk, api_key, api_url, max_retries=3):
     Send a chunk of anomalies to the external API using the assigned API key.
     Handles retries, rate limits, and returns structured results.
     """
+    if not anomaly_chunk or len(anomaly_chunk) == 0:
+        print(f"[DEBUG] Empty chunk for key {api_key[:10]}..., returning empty results.")
+        return []
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     prompt = build_anomaly_prompt(list(anomaly_chunk))
     data = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama3-70b-8192",
         "messages": [
             {
                 "role": "user",
@@ -128,27 +131,93 @@ def classify_anomalies_worker(anomaly_chunk, api_key, api_url, max_retries=3):
             response = requests.post(api_url, headers=headers, json=data, timeout=30)
             elapsed = time.time() - start
             if response.status_code == 429:
-                print(f"[WARN] Rate limit hit for key {api_key}. Throttling...")
+                print(f"[WARN] Rate limit hit for key {api_key[:10]}.... Throttling...")
                 time.sleep(2 ** attempt)  # Exponential backoff
                 continue
             response.raise_for_status()
-            print(f"[INFO] API key {api_key} used. Response time: {elapsed:.2f}s")
+            print(f"[INFO] API key {api_key[:10]}... used. Response time: {elapsed:.2f}s")
+            # Get the raw response content
             reply = response.json()["choices"][0]["message"]["content"]
-            try:
-                result = json.loads(reply)
-            except Exception:
-                result = reply
+            # Log a snippet of the raw response for debugging
+            print(f"[DEBUG] Raw response snippet for key {api_key[:10]}...: {reply[:100] if reply else 'Empty response'}...")
+            # Check if the response looks like JSON (starts with { or [)
+            reply = reply.strip()
+            if reply and (reply[0] == '{' or reply[0] == '['):
+                # Attempt to parse JSON
+                try:
+                    start_idx = reply.find('[')
+                    end_idx = reply.rfind(']') + 1
+                    if start_idx >= 0 and end_idx > start_idx:
+                        json_str = reply[start_idx:end_idx]
+                        result = json.loads(json_str)
+                        if not isinstance(result, list):
+                            print(f"[WARN] Parsed JSON is not a list for key {api_key[:10]}...")
+                            result = []
+                    else:
+                        # Try parsing the entire reply as JSON if no array is found
+                        result = json.loads(reply)
+                        if not isinstance(result, list):
+                            print(f"[WARN] Full JSON parse is not a list for key {api_key[:10]}...")
+                            result = []
+                except json.JSONDecodeError as e:
+                    print(f"[ERROR] JSON parse failed for key {api_key[:10]}...: {e}")
+                    # Fallback to text extraction if JSON parsing fails
+                    result = extract_anomalies_from_text(reply)
+            else:
+                # Response is likely plain text, extract data directly
+                print(f"[DEBUG] Response for key {api_key[:10]}... is plain text, attempting text extraction.")
+                result = extract_anomalies_from_text(reply)
             return result
         except Exception as e:
-            print(f"[ERROR] API key {api_key} attempt {attempt+1} failed: {e}")
+            print(f"[ERROR] API key {api_key[:10]}... attempt {attempt+1} failed: {e}")
             time.sleep(2 ** attempt)
     return []  # Return empty if all retries fail
+
+
+def extract_anomalies_from_text(text):
+    """
+    Fallback method to extract anomaly data from plain text responses if JSON parsing fails.
+    Looks for patterns like 'type', 'severity', 'count' in the text.
+    """
+    import re
+    result = []
+    # Simple pattern to look for anomaly descriptions in text
+    pattern = r'(type|anomaly)[^:]*:.*?(\w+[^,.;]*)(?:,|\.|\s|$)|severity[^:]*:.*?(\w+[^,.;]*)(?:,|\.|\s|$)|count[^:]*:.*?(\d+)(?:,|\.|\s|$)'
+    matches = re.findall(pattern, text, re.IGNORECASE)
+    if matches:
+        current_type = None
+        current_severity = None
+        current_count = None
+        for match in matches:
+            if match[1].strip():
+                current_type = match[1].strip()
+            elif match[2].strip():
+                current_severity = match[2].strip()
+            elif match[3].strip():
+                current_count = int(match[3].strip())
+            if current_type and current_severity and current_count is not None:
+                result.append({
+                    'type': current_type,
+                    'severity': current_severity,
+                    'count': current_count
+                })
+                current_type = None
+                current_severity = None
+                current_count = None
+    if not result:
+        print("[DEBUG] No anomaly data extracted from plain text response.")
+    else:
+        print(f"[DEBUG] Extracted {len(result)} anomalies from plain text response.")
+    return result
 
 
 def classify_all_anomalies(anomalies):
     """
     Classify all anomalies in parallel using 6 API keys and merge the results.
     """
+    if not anomalies or len(anomalies) == 0:
+        print("[DEBUG] Empty anomalies list passed to classify_all_anomalies, returning empty results.")
+        return []
     n_keys = len(API_KEYS)
     anomaly_chunks = split_anomalies(anomalies, n_keys)
     results = []

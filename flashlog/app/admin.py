@@ -7,36 +7,13 @@ import re
 
 admin = Blueprint('admin', __name__)
 
-@admin.route('/dashboard')
+@admin.route('/admin/dashboard')
 @login_required
-@admin_required
-def dashboard():
-    """Admin dashboard main page"""
-    # Get user statistics
-    conn = get_db_connection()
-    
-    # Total users
-    total_users = conn.execute('SELECT COUNT(*) as count FROM users').fetchone()['count']
-    
-    # Active users
-    active_users = conn.execute('SELECT COUNT(*) as count FROM users WHERE is_active = 1').fetchone()['count']
-    
-    # Admin users
-    admin_users = conn.execute('SELECT COUNT(*) as count FROM users WHERE role = "admin"').fetchone()['count']
-    
-    # Recent logins (last 24 hours)
-    recent_logins = conn.execute('''
-        SELECT COUNT(*) as count FROM users 
-        WHERE last_login >= datetime('now', '-1 day')
-    ''').fetchone()['count']
-    
-    conn.close()
-    
-    return render_template('admin/dashboard.html', 
-                         total_users=total_users,
-                         active_users=active_users,
-                         admin_users=admin_users,
-                         recent_logins=recent_logins)
+def admin_dashboard():
+    user_role = session.get('role', 'user')
+    if user_role != 'admin':
+        return redirect(url_for('main.user_dashboard'))
+    return render_template('admin/dashboard.html')
 
 @admin.route('/users')
 @login_required

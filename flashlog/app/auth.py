@@ -188,113 +188,109 @@ def register():
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    """User login"""
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         remember = request.form.get('remember') == 'on'
-        
+        # Validate input
         if not username or not password:
-            flash('Please enter both username and password!', 'error')
-            return render_template('auth/auth.html')
-        
-        # Check for account lockout
+            flash('Please provide both username and password.', 'error')
+            return redirect(url_for('auth.login'))
+        # Check user in database
+        print(f"[DEBUG] Attempting login for username: {username}")
         conn = get_db_connection()
-        
-        # Check failed login attempts in last 15 minutes
-        failed_attempts = conn.execute('''
-            SELECT COUNT(*) as count FROM user_activities 
-            WHERE activity_type = 'login' AND status = 'failed' 
-            AND user_id = (SELECT id FROM users WHERE username = ?)
-            AND created_at >= datetime('now', '-15 minutes')
-        ''', (username,)).fetchone()['count']
-        
-        # Lock account after 5 failed attempts
-        if failed_attempts >= 5:
-            flash('Account temporarily locked due to too many failed login attempts. Please try again in 15 minutes.', 'error')
-            conn.close()
-            return render_template('auth/auth.html')
-        
-        user = conn.execute(
-            'SELECT * FROM users WHERE username = ? AND is_active = 1', 
-            (username,)
-        ).fetchone()
+        user_row = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
         conn.close()
-        
-        if user and check_password_hash(user['password_hash'], password):
-            # Log successful login (will be logged after session creation)
-            pass
-        else:
-            # Log failed login attempt
-            if user:
-                from .routes import log_user_activity
-                log_user_activity(
-                    user_id=user['id'],
-                    activity_type='login',
-                    description=f'Failed login attempt',
-                    details=f'Invalid password for user: {username}',
-                    status='failed',
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent', 'Unknown')
-                )
+        if user_row:
+            print(f"[DEBUG] Username {username} found in database.")
+            # Convert sqlite3.Row to dictionary
+            user = dict(user_row)
+            # Check for password field under different possible names
+            password_field = None
+            for field in ['password', 'password_hash', 'hashed_password']:
+                if field in user:
+                    password_field = field
+                    break
+            if password_field:
+                print(f"[DEBUG] Password field '{password_field}' exists for user {username}, checking hash.")
+                if check_password_hash(user[password_field], password):
+                    print(f"[DEBUG] Password hash matches for user {username}.")
+                    # Check if account is locked, default to False if key doesn't exist
+                    if user.get('locked', False):
+                        print(f"[DEBUG] Account for user {username} is locked.")
+                        flash('Account is locked. Please contact support.', 'error')
+                        return redirect(url_for('auth.login'))
+                    session['user_id'] = user['id']
+                    session['username'] = user['username']
+                    session['role'] = user.get('role', 'user')  # Default to 'user' if role not set
+                    session['session_token'] = str(uuid.uuid4())  # Generate a unique session token
+                    session.permanent = remember  # Make session permanent if 'remember' is checked
+                    print(f"[DEBUG] Session created for user {username} with token {session['session_token'][:8]}... and permanent={remember}")
+                    # Insert session into user_sessions table
+                    from datetime import datetime, timedelta
+                    expires_at = datetime.now() + timedelta(hours=1)
+                    conn = get_db_connection()
+                    conn.execute(
+                        'INSERT INTO user_sessions (user_id, session_token, expires_at) VALUES (?, ?, ?)',
+                        (user['id'], session['session_token'], expires_at)
+                    )
+                    conn.commit()
+                    conn.close()
+                    # Log the login activity
+                    try:
+                        conn = get_db_connection()
+                        conn.execute(
+                            'INSERT INTO user_activities (user_id, activity_type, description, created_at) VALUES (?, ?, ?, ?)',
+                            (user['id'], 'login', 'User logged in successfully', datetime.now())
+                        )
+                        conn.commit()
+                        conn.close()
+                        print(f"[DEBUG] Logged login activity for user {user['username']}.")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to log login activity for user {user['username']}: {e}")
+                    flash(f'Welcome back, {user["username"]}!', 'success')
+                    print(f"[DEBUG] Session right before redirect after login: {dict(session)}")
+                    # Redirect based on role
+                    if session['role'] == 'admin':
+                        print(f"[DEBUG] Redirecting admin user {user['username']} to admin dashboard.")
+                        return redirect(url_for('main.dashboard'))  # Admin dashboard
+                    else:
+                        print(f"[DEBUG] Redirecting normal user {user['username']} to user dashboard.")
+                        return redirect(url_for('main.user_dashboard'))  # Normal user to user dashboard
+                else:
+                    print(f"[DEBUG] Password hash does not match for user {username}.")
+                    flash('Invalid username or password.', 'error')
+                    try:
+                        return render_template('auth/auth.html', title='Login')
+                    except Exception as e:
+                        print(f"[ERROR] Template rendering failed for auth/auth.html: {e}")
+                        flash('Error rendering login page. Please try again.', 'error')
+                        return redirect(url_for('auth.login'))
             else:
-                # Log failed login for non-existent user
-                from .routes import log_user_activity
-                log_user_activity(
-                    user_id=0,  # No user ID for non-existent user
-                    activity_type='login',
-                    description=f'Failed login attempt for non-existent user',
-                    details=f'Username not found: {username}',
-                    status='failed',
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent', 'Unknown')
-                )
-            
-            flash('Invalid username or password!', 'error')
-            return render_template('auth/auth.html')
-        
-        if user and check_password_hash(user['password_hash'], password):
-            # Create session
-            session_token = str(uuid.uuid4())
-            session_duration = timedelta(days=30) if remember else timedelta(hours=24)
-            expires_at = datetime.now() + session_duration
-            
-            conn = get_db_connection()
-            conn.execute(
-                'INSERT INTO user_sessions (user_id, session_token, expires_at) VALUES (?, ?, ?)',
-                (user['id'], session_token, expires_at)
-            )
-            conn.execute(
-                'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
-                (user['id'],)
-            )
-            conn.commit()
-            conn.close()
-            
-            # Set session
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['session_token'] = session_token
-            session['role'] = user['role']
-            
-            # Log login activity with enhanced details
-            from .routes import log_user_activity
-            log_user_activity(
-                user_id=user['id'],
-                activity_type='login',
-                description=f'User logged in successfully',
-                details=f'Login from session: {session_token[:8]}...',
-                status='success',
-                ip_address=request.remote_addr,
-                user_agent=request.headers.get('User-Agent', 'Unknown')
-            )
-            
-            flash(f'Welcome back, {user["username"]}!', 'success')
-            return redirect(url_for('dashboard.index'))
+                print(f"[DEBUG] No password field found for user {username} under expected names (password, password_hash, hashed_password).")
+                flash('Invalid username or password.', 'error')
+                try:
+                    return render_template('auth/auth.html', title='Login')
+                except Exception as e:
+                    print(f"[ERROR] Template rendering failed for auth/auth.html: {e}")
+                    flash('Error rendering login page. Please try again.', 'error')
+                    return redirect(url_for('auth.login'))
         else:
-            flash('Invalid username or password!', 'error')
-    
-    return render_template('auth/auth.html')
+            print(f"[DEBUG] Username {username} not found in database.")
+            flash('Invalid username or password.', 'error')
+            try:
+                return render_template('auth/auth.html', title='Login')
+            except Exception as e:
+                print(f"[ERROR] Template rendering failed for auth/auth.html: {e}")
+                flash('Error rendering login page. Please try again.', 'error')
+                return redirect(url_for('auth.login'))
+    # GET request: render login template
+    try:
+        return render_template('auth/auth.html', title='Login')
+    except Exception as e:
+        print(f"[ERROR] Template rendering failed for auth/auth.html: {e}")
+        flash('Error rendering login page. Please try again.', 'error')
+        return redirect(url_for('auth.login'))
 
 @auth.route('/logout')
 def logout():

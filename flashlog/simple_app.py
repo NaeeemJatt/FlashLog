@@ -60,11 +60,14 @@ def logout():
     flash('Logged out successfully!', 'success')
     return redirect('/login')
 
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    """Dashboard with AI summarization"""
-    return render_template('simple_dashboard.html')
+# Update all dashboard references to use standardized routes/templates
+@app.route('/user/dashboard')
+def user_dashboard():
+    return render_template('user_dashboard.html')
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    return render_template('admin/dashboard.html')
 
 @app.route('/summarize', methods=['GET', 'POST'])
 @login_required

@@ -279,37 +279,6 @@ def process_log_file(filepath, parser_algo, model_type, index_name):
     detector.execute()
     results = detector.results
     
-    # Only process anomalies
-    if 'is_anomaly' in results.columns:
-        anomalies = results[results['is_anomaly'] == True].copy()
-        if not anomalies.empty:
-            # Load API URLs and keys from environment
-            api_urls = [os.environ.get(f'ANOMALY_API_URL_{i+1}') for i in range(6)]
-            api_keys = [os.environ.get(f'ANOMALY_API_KEY_{i+1}') for i in range(6)]
-            api_endpoints = [(url, key) for url, key in zip(api_urls, api_keys) if url and key]
-            if api_endpoints:
-                for idx, (i, row) in enumerate(anomalies.iterrows()):
-                    api_url, api_key = api_endpoints[idx % len(api_endpoints)]
-                    api_response = call_external_api(row['logline'], api_url, api_key)
-                    # Parse response for anomaly_type and severity
-                    if api_response and 'choices' in api_response and api_response['choices']:
-                        content = api_response['choices'][0].get('message', {}).get('content', '')
-                        # Simple parsing: expect response as 'anomaly_type:..., severity:...'
-                        anomaly_type, severity = None, None
-                        for part in content.split(','):
-                            if 'anomaly_type' in part:
-                                anomaly_type = part.split(':',1)[-1].strip()
-                            if 'severity' in part:
-                                severity = part.split(':',1)[-1].strip()
-                        anomalies.at[i, 'anomaly_type'] = anomaly_type or 'Unknown'
-                        anomalies.at[i, 'severity'] = severity or 'Unknown'
-                    else:
-                        anomalies.at[i, 'anomaly_type'] = 'Unknown'
-                        anomalies.at[i, 'severity'] = 'Unknown'
-                # Update results DataFrame with new columns
-                results.loc[anomalies.index, 'anomaly_type'] = anomalies['anomaly_type']
-                results.loc[anomalies.index, 'severity'] = anomalies['severity']
-
     # Aggregate counts for dashboard
     if 'severity' in results.columns:
         severity_counts = results['severity'].value_counts().to_dict()

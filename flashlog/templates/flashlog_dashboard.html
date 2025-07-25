@@ -1,134 +1,653 @@
 {% extends 'base.html' %}
 {% block title %}FlashLog Visualisation Dashboard{% endblock %}
 {% block content %}
-<div class="container mx-auto py-6 px-2">
-  <!-- Top: 3 Graphs -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-    <!-- Anomaly Count Pie -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col items-center">
-      <h2 class="text-lg font-semibold text-center mb-2">Anomaly Count</h2>
-      <canvas id="anomalyChart" class="w-full max-w-xs"></canvas>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlashLog Visualisation Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --bg:#f5f6f9;
+      --bg-card:#ffffff;
+      --bg-alt:#f3f4f6;
+      --text:#1f2937;
+      --text-light:#6b7280;
+      --border:#e5e7eb;
+      --primary:#0ea5e9;
+      --danger:#ef4444;
+      --warning:#f59e0b;
+      --success:#22c55e;
+    }
+    .dark{
+      --bg:#0f172a;
+      --bg-card:#1e293b;
+      --bg-alt:#334155;
+      --text:#e2e8f0;
+      --text-light:#94a3b8;
+      --border:#475569;
+      --primary:#38bdf8;
+      --danger:#f87171;
+      --warning:#fbbf24;
+      --success:#4ade80;
+    }
+    body{
+      background:var(--bg);
+      color:var(--text);
+      font-family:Inter,system-ui,Avenir,Helvetica,Arial,sans-serif;
+      margin:0;
+    }
+    .page-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:1.2rem 1.6rem 0.3rem;
+    }
+    .page-header h1{
+      margin:0;
+      font-size:1.6rem;
+    }
+    .header-actions{
+      display:flex;
+      gap:0.6rem;
+    }
+    .btn{
+      background:var(--primary);
+      color:#fff;
+      border:none;
+      padding:0.5rem 0.9rem;
+      font-size:0.9rem;
+      border-radius:6px;
+      cursor:pointer;
+    }
+    .btn.outline{
+      background:transparent;
+      color:var(--primary);
+      border:1px solid var(--primary);
+    }
+    .btn:active{transform:scale(0.98);}
+
+    .stats-row{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+      gap:1rem;
+      padding:0 1.6rem 1.2rem;
+    }
+    .stat-card{
+      background:var(--bg-card);
+      border-radius:8px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.05);
+      padding:1rem;
+      text-align:center;
+    }
+    .stat-label{
+      font-size:0.85rem;
+      color:var(--text-light);
+    }
+    .stat-value{
+      font-size:1.4rem;
+      font-weight:600;
+    }
+    .danger .stat-value{color:var(--danger);}
+    .warning .stat-value{color:var(--warning);}
+    .success .stat-value{color:var(--success);}
+
+    .charts-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:1.2rem;
+      padding:0 1.6rem 1.6rem;
+      grid-auto-rows:auto;
+      align-items:start;
+    }
+    .card{
+      background:var(--bg-card);
+      border-radius:8px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.05);
+      padding:0.9rem 1.1rem;
+    }
+    .card h2{
+      margin:0 0 0.6rem;
+      font-size:1.05rem;
+      font-weight:600;
+    }
+    .card.small{
+      padding:0.7rem 0.9rem;
+      height:auto;
+    }
+    .small canvas{
+      width:100% !important;
+      height:150px !important;
+      max-height:150px !important;
+    }
+    .card.large{
+      grid-column:span 2;
+      min-height:320px;
+    }
+    .large-chart-wrap{
+      display:flex;
+      gap:1.2rem;
+      align-items:flex-start;
+    }
+    .large-chart-wrap canvas{
+      width:100% !important;
+      height:300px !important;
+      max-height:300px !important;
+    }
+    .custom-legend{
+      max-height:300px;
+      overflow-y:auto;
+      padding-right:0.4rem;
+    }
+    .custom-legend ul{
+      list-style:none;
+      margin:0;
+      padding:0;
+    }
+    .custom-legend li{
+      display:flex;
+      align-items:center;
+      gap:0.4rem;
+      margin-bottom:0.3rem;
+      font-size:0.86rem;
+      white-space:nowrap;
+    }
+    .legend-color-box{
+      width:16px;
+      height:16px;
+      border-radius:3px;
+      border:1px solid var(--border);
+    }
+
+    .table-card{
+      padding:0;
+      overflow:hidden;
+    }
+    .table-bar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:1rem 1.4rem 0.6rem;
+      border-bottom:1px solid var(--border);
+    }
+    .table-bar h2{margin:0;}
+    .table-tools{
+      display:flex;
+      gap:0.6rem;
+      align-items:center;
+    }
+    .table-tools input{
+      padding:0.45rem 0.6rem;
+      border:1px solid var(--border);
+      border-radius:4px;
+      background:var(--bg-alt);
+      color:var(--text);
+    }
+
+    .table-wrap{
+      overflow-x:auto;
+      max-height:380px;
+    }
+    .logs-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:0.88rem;
+    }
+    .logs-table thead th{
+      background:var(--primary);
+      color:#fff;
+      padding:0.6rem 0.8rem;
+      position:sticky;
+      top:0;
+      z-index:1;
+    }
+    .logs-table tbody td{
+      padding:0.55rem 0.8rem;
+      border-bottom:1px solid var(--border);
+      color:var(--text);
+    }
+    .logs-table tbody tr:hover{
+      background:var(--bg-alt);
+    }
+
+    .pagination{
+      display:flex;
+      justify-content:flex-end;
+      gap:0.4rem;
+      padding:0.7rem 1.2rem;
+      border-top:1px solid var(--border);
+    }
+    .pagination button{
+      border:1px solid var(--border);
+      background:var(--bg-card);
+      padding:0.3rem 0.6rem;
+      border-radius:4px;
+      font-size:0.8rem;
+      cursor:pointer;
+    }
+    .pagination button.active{
+      border-color:var(--primary);
+      color:var(--primary);
+      font-weight:600;
+    }
+
+    
+    
+    .link{
+      color:var(--primary);
+      text-decoration:underline;
+    }
+
+    @media (max-width:900px){
+      .card.large{grid-column:span 1;}
+      .large-chart-wrap{flex-direction:column;}
+    }
+    /* unified chart sizing */
+  .card.small,.card.large{min-height:auto;}
+  .small canvas,
+  .large-chart-wrap canvas{
+    width:100% !important;
+    height:180px !important;
+    max-height:180px !important;
+  }
+  .custom-legend{max-height:180px;}
+</style>
+</head>
+
+<body>
+  <nav class="w-full z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg shadow-gray-900/10">
+    <div class="max-w-7xl mx-auto flex items-center justify-between h-16 px-6">
+      <!-- Left: Title -->
+      <div class="flex items-center gap-3">
+        <div class="font-bold text-xl text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          Flashlog Visualization Dashboard
+        </div>
+      </div>
+      <!-- Right: User info and actions -->
+      <div class="flex items-center gap-4">
+        <div class="relative group">
+          <div class="flex items-center gap-2 cursor-pointer select-none">
+            <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              {% if session.get('username') %}
+                {{ session.get('username')[0].upper() }}
+              {% else %}
+                <!-- fallback -->
+              {% endif %}
+            </div>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ session.username }}</span>
+            <svg class="w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+          <!-- Dropdown -->
+          <div class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right scale-95 group-hover:scale-100 z-50">
+            <div class="py-2">
+              <a href="{{ url_for('auth.profile') }}" class="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                Profile & Account
+              </a>
+              <a href="{{ url_for('auth.change_password') }}" class="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                </svg>
+                Change Password
+              </a>
+              <a href="{{ url_for('main.history') }}" class="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Activity History
+              </a>
+              <hr class="my-2 border-gray-200 dark:border-gray-700">
+              <a href="{{ url_for('auth.logout') }}" class="flex items-center px-4 py-3 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <!-- Vulnerability Severity Bar -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col items-center">
-      <h2 class="text-lg font-semibold text-center mb-2">Vulnerability Count</h2>
-      <canvas id="vulnChart" class="w-full max-w-xs"></canvas>
+  </nav>
+
+  <h1 class="text-center font-bold text-2xl mb-2 mt-8"></h1>
+  <div style="height: 32px;"></div>
+  <section class="stats-row" id="topStats">
+    <div class="stat-card">
+      <span class="stat-label">Total Logs</span>
+      <span class="stat-value" id="statTotal">0</span>
     </div>
-    <!-- Anomaly Type Line -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col items-center">
-      <h2 class="text-lg font-semibold text-center mb-2">Anomaly Type Over Time</h2>
-      <canvas id="anomalyTypeChart" class="w-full max-w-xs"></canvas>
+    <div class="stat-card danger">
+      <span class="stat-label">Anomalies</span>
+      <span class="stat-value" id="statAnomalies">0</span>
+    </div>
+    <div class="stat-card warning">
+      <span class="stat-label">Critical Vulns</span>
+      <span class="stat-value" id="statCritical">0</span>
+    </div>
+    <div class="stat-card success">
+      <span class="stat-label">Normal Logs</span>
+      <span class="stat-value" id="statNormal">0</span>
+    </div>
+  </section>
+
+  <section class="charts-grid">
+    <div class="card small">
+      <h2>Anomaly Count</h2>
+      <canvas id="anomalyChart"></canvas>
+    </div>
+
+    <div class="card small">
+      <h2>Vulnerability Count</h2>
+      <canvas id="vulnChart"></canvas>
+    </div>
+
+    <div class="card large">
+      <h2>Anomaly Type</h2>
+      <div class="large-chart-wrap">
+        <canvas id="anomalyTypeChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section class="card table-card">
+    <div class="table-bar">
+      <h2>Logs</h2>
+      <div class="table-tools">
+        <input type="text" id="searchInput" placeholder="Search log text" />
+        <button class="btn outline" id="exportCsv">Export CSV</button>
     </div>
   </div>
-  <!-- Bottom: Table and AI Summary -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <!-- Logs Table -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 overflow-x-auto">
-      <h2 class="text-lg font-semibold mb-4">Logs Information</h2>
-      <table class="min-w-full table-auto border-collapse" id="logsTable">
-        <thead class="bg-sky-600 text-white">
+    <div class="table-wrap">
+      <table class="logs-table">
+        <thead>
           <tr>
-            <th class="px-4 py-2">Timestamp</th>
-            <th class="px-4 py-2">Log</th>
-            <th class="px-4 py-2">Anomaly</th>
-            <th class="px-4 py-2">Severity</th>
+            <th>Timestamp</th>
+            <th>Log</th>
+            <th>Anomaly</th>
+            <th>Severity</th>
           </tr>
         </thead>
-        <tbody class="text-gray-700 dark:text-gray-200" id="logsTableBody">
-          {% for row in kibana_data.table_data %}
-          <tr class="hover:bg-sky-100 dark:hover:bg-gray-700">
-            <td class="px-4 py-2 whitespace-nowrap">{{ row.timestamp }}</td>
-            <td class="px-4 py-2 max-w-xs truncate">{{ row.logline }}</td>
-            <td class="px-4 py-2">{{ row.anomaly_type }}</td>
-            <td class="px-4 py-2">{{ row.severity }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
+        <tbody id="logsTableBody"></tbody>
       </table>
     </div>
-    <!-- AI Summary -->
-    <div class="bg-gray-100 dark:bg-gray-900 rounded-md shadow p-4 flex flex-col justify-center items-center min-h-[200px]">
-      <h2 class="font-bold text-lg mb-2 text-gray-800 dark:text-gray-100">AI Summary</h2>
-      <p class="text-gray-600 dark:text-gray-300 italic" id="aiSummary">{{ ai_summary or 'No summary available.' }}</p>
-    </div>
-  </div>
-</div>
+    <div class="pagination" id="pager"></div>
+  </section>
+
+  
+
 <script>
-// Initial chart data from server-rendered context
-const anomalyChartData = {
-  labels: ['Normal Logs', 'Anomalies'],
-  datasets: [{
-    data: [{{ analysis_summary.normal_count or (analysis_summary.total_logs or 1000) - (analysis_summary.anomaly_count or 0) }}, {{ analysis_summary.anomaly_count or 0 }}],
-    backgroundColor: ['#22c55e', '#ef4444']
-  }]
-};
-const vulnChartData = {
-  labels: ['Critical', 'High', 'Medium', 'Low'],
-  datasets: [{
-    label: 'Count',
-    data: [
-      {{ severity_counts['Critical'] if severity_counts and 'Critical' in severity_counts else 0 }},
-      {{ severity_counts['High'] if severity_counts and 'High' in severity_counts else 0 }},
-      {{ severity_counts['Medium'] if severity_counts and 'Medium' in severity_counts else 0 }},
-      {{ severity_counts['Low'] if severity_counts and 'Low' in severity_counts else 0 }}
-    ],
-    backgroundColor: ['#dc2626', '#f59e42', '#fbbf24', '#38bdf8']
-  }]
-};
-const anomalyTypeChartData = {
-  labels: {{ kibana_data.time_series.time_points|tojson }},
-  datasets: [
-    {% if kibana_data.time_series.anomaly_types is defined and kibana_data.time_series.anomaly_types %}
-      {% for atype, series in kibana_data.time_series.anomaly_types.items() %}
-      {
-        label: '{{ atype }}',
-        data: {{ series|tojson }},
-        fill: false,
-        borderColor: '{{ ['#a21caf', '#2563eb', '#059669', '#eab308', '#64748b'][loop.index0 % 5] }}',
-        tension: 0.3
-      }{% if not loop.last %},{% endif %}
-      {% endfor %}
-    {% endif %}
-  ]
-};
-// Chart.js instances
-const anomalyChart = new Chart(document.getElementById('anomalyChart'), { type: 'pie', data: anomalyChartData, options: {responsive: true, plugins: {legend: {position: 'bottom'}}}});
-const vulnChart = new Chart(document.getElementById('vulnChart'), { type: 'bar', data: vulnChartData, options: {responsive: true, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}});
-const anomalyTypeChart = new Chart(document.getElementById('anomalyTypeChart'), { type: 'line', data: anomalyTypeChartData, options: {responsive: true, plugins: {legend: {position: 'bottom'}}, scales: {y: {beginAtZero: true}}}});
-// Polling for real-time updates
-async function fetchDashboardData() {
-  const resp = await fetch('/api/dashboard-data');
-  if (!resp.ok) return;
-  const data = await resp.json();
-  // Update Pie
-  anomalyChart.data.datasets[0].data = [data.normal_count, data.anomaly_count];
-  anomalyChart.update();
-  // Update Bar
-  vulnChart.data.datasets[0].data = [data.severity_counts.Critical, data.severity_counts.High, data.severity_counts.Medium, data.severity_counts.Low];
-  vulnChart.update();
-  // Update Line
-  anomalyTypeChart.data.labels = data.time_series.time_points;
-  anomalyTypeChart.data.datasets = data.time_series.anomaly_types.map((series, i) => ({
-    label: series.label,
-    data: series.data,
-    fill: false,
-    borderColor: ['#a21caf', '#2563eb', '#059669', '#eab308', '#64748b'][i % 5],
-    tension: 0.3
-  }));
-  anomalyTypeChart.update();
-  // Update Table
-  const tbody = document.getElementById('logsTableBody');
-  tbody.innerHTML = data.table_data.map(row => `
-    <tr class="hover:bg-sky-100 dark:hover:bg-gray-700">
-      <td class="px-4 py-2 whitespace-nowrap">${row.timestamp}</td>
-      <td class="px-4 py-2 max-w-xs truncate">${row.logline}</td>
-      <td class="px-4 py-2">${row.anomaly_type}</td>
-      <td class="px-4 py-2">${row.severity}</td>
-    </tr>
-  `).join('');
-  // Update AI Summary
-  document.getElementById('aiSummary').textContent = data.ai_summary || 'No summary available.';
-}
-setInterval(fetchDashboardData, 10000); // Poll every 10 seconds
+    const PAGE_SIZE = 15;
+    let allLogs = [];
+    let filteredLogs = [];
+    let currentPage = 1;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('searchInput').addEventListener('input', onSearch);
+      document.getElementById('exportCsv').addEventListener('click', exportCsv);
+      loadData();
+    });
+
+    function toggleTheme(){
+      document.documentElement.classList.toggle('dark');
+    }
+
+    function loadData(){
+      fetch('/api/dashboard-data')
+        .then(r => r.json())
+        .then(drawDashboard)
+        .catch(err => console.error('Failed to load data', err));
+    }
+
+    function drawDashboard(data){
+      const analysis = data.analysisSummary || {};
+      const anomalyTypes = data.anomalyTypes || [];
+      const severityCounts = data.severityCounts || {};
+      allLogs = data.logs || [];
+      filteredLogs = allLogs.slice();
+
+      updateStats(analysis, severityCounts);
+      const pieChart = renderAnomalyPie(analysis);
+      const barChart = renderVulnBar(severityCounts);
+      const donutChart = renderDonut(anomalyTypes);
+      renderTable();
+
+      addChartClickHandlers(pieChart, barChart, donutChart, anomalyTypes, severityCounts);
+    }
+
+    function updateStats(analysis, severityCounts){
+      const normal = analysis.normal_count ?? (analysis.total_logs || 0) - (analysis.anomaly_count || analysis.total_anomalies || 0);
+      const total = analysis.total_logs || normal + (analysis.anomaly_count || 0);
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statAnomalies').textContent = analysis.anomaly_count || analysis.total_anomalies || 0;
+      document.getElementById('statCritical').textContent = severityCounts.Critical || 0;
+      document.getElementById('statNormal').textContent = normal;
+    }
+
+    function renderAnomalyPie(analysis){
+      const ctx = document.getElementById('anomalyChart').getContext('2d');
+      const normal = analysis.normal_count ?? (analysis.total_logs || 0) - (analysis.anomaly_count || analysis.total_anomalies || 0);
+      const anomalies = analysis.anomaly_count || analysis.total_anomalies || 0;
+      return new Chart(ctx,{
+        type:'pie',
+        data:{
+          labels:['Normal','Anomalies'],
+          datasets:[{
+            data:[normal, anomalies],
+            backgroundColor:['#22c55e','#ef4444']
+          }]
+        },
+        options:{responsive:true, plugins:{legend:{position:'bottom'}}}
+      });
+    }
+
+    function renderVulnBar(severityCounts){
+      const ctx = document.getElementById('vulnChart').getContext('2d');
+      return new Chart(ctx,{
+        type:'bar',
+        data:{
+          labels:['Critical','High','Medium','Low'],
+          datasets:[{
+            label:'Count',
+            data:[
+              severityCounts.Critical || 0,
+              severityCounts.High || 0,
+              severityCounts.Medium || 0,
+              severityCounts.Low || 0
+            ],
+            backgroundColor:['#ef4444','#f97316','#eab308','#38bdf8']
+          }]
+        },
+        options:{
+          responsive:true,
+          plugins:{legend:{display:false}},
+          scales:{y:{beginAtZero:true}}
+        }
+      });
+    }
+
+    function renderDonut(types){
+      const ctx = document.getElementById('anomalyTypeChart').getContext('2d');
+      const labels = types.map(t => t.type.length > 22 ? t.type.slice(0,22) + '…' : t.type);
+      const values = types.map(t => t.count);
+
+      const chart = new Chart(ctx,{
+        type:'doughnut',
+        data:{
+          labels,
+          datasets:[{
+            label:'Occurrences',
+            data:values,
+            borderColor:'#fff',
+            borderWidth:2,
+            backgroundColor:generatePalette(values.length)
+          }]
+        },
+        options:{plugins:{legend:{display:false}}, responsive:true}
+      });
+
+      renderLegend(chart, 'donutLegend');
+      return chart;
+    }
+
+    function generatePalette(n){
+      const base=[
+        '#2563eb','#059669','#eab308','#64748b','#f43f5e','#f97316',
+        '#10b981','#fbbf24','#38bdf8','#6366f1','#22c55e','#ef4444',
+        '#a21caf','#0ea5e9','#475569'
+      ];
+      const colors=[];
+      for(let i=0;i<n;i++) colors.push(base[i % base.length]);
+      return colors;
+    }
+
+    function renderLegend(chart,id){
+      const wrap=document.getElementById(id);
+      if(!wrap) return;
+      const labels=chart.data.labels;
+      const colors=chart.data.datasets[0].backgroundColor;
+      let html='<ul>';
+      labels.forEach((l,i)=>{
+        html+='<li><span class="legend-color-box" style="background:'+colors[i]+'"></span>'+l+'</li>';
+      });
+      html+='</ul>';
+      wrap.innerHTML=html;
+    }
+
+    function renderTable(){
+      const tbody=document.getElementById('logsTableBody');
+      tbody.innerHTML='';
+      const start=(currentPage-1)*PAGE_SIZE;
+      const end=start+PAGE_SIZE;
+      const pageRows=filteredLogs.slice(start,end);
+
+      for(const row of pageRows){
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td>${row.timestamp || ''}</td>
+          <td title="${escapeHtml(row.log || '')}">${truncate(row.log || '',90)}</td>
+          <td>${row.anomaly || ''}</td>
+          <td>${row.severity || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+      buildPager();
+    }
+
+    function buildPager(){
+      const pager=document.getElementById('pager');
+      pager.innerHTML='';
+      const pages=Math.ceil(filteredLogs.length / PAGE_SIZE);
+      for(let i=1;i<=pages;i++){
+        const btn=document.createElement('button');
+        btn.textContent=i;
+        btn.classList.toggle('active', i===currentPage);
+        btn.onclick=()=>{currentPage=i; renderTable();};
+        pager.appendChild(btn);
+      }
+    }
+
+    function onSearch(e){
+      const q=e.target.value.toLowerCase();
+      filteredLogs=allLogs.filter(r => (r.log || '').toLowerCase().includes(q));
+      currentPage=1;
+      renderTable();
+    }
+
+    function exportCsv(){
+      const headers=['timestamp','log','anomaly','severity'];
+      const rows=filteredLogs.map(r => headers.map(h => '"' + String(r[h] || '').replace(/"/g,'""') + '"').join(','));
+      const csv=headers.join(',') + '\n' + rows.join('\n');
+      const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download='logs.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function truncate(text,max){
+      return text.length>max ? text.slice(0,max-1)+'…' : text;
+    }
+    function escapeHtml(str){
+      return str.replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m]));
+    }
+    function filterLogsByType(type) {
+      filteredLogs = allLogs.filter(r => (r.anomaly_type || r.type || r.anomaly) === type);
+      currentPage = 1;
+      renderTable();
+    }
+    function filterLogsBySeverity(sev) {
+      filteredLogs = allLogs.filter(r => (r.severity || '').toLowerCase() === sev.toLowerCase());
+      currentPage = 1;
+      renderTable();
+    }
+    function filterLogsByNormalAnomaly(isAnomaly) {
+      filteredLogs = allLogs.filter(r => {
+        if (typeof r.is_anomaly !== 'undefined') return !!r.is_anomaly === isAnomaly;
+        if (typeof r.anomaly === 'string') return (r.anomaly.toLowerCase() === 'anomaly') === isAnomaly;
+        return false;
+      });
+      currentPage = 1;
+      renderTable();
+    }
+    function showAllLogs() {
+      filteredLogs = allLogs.slice();
+      currentPage = 1;
+      renderTable();
+    }
+    // Add Show All button
+    window.addEventListener('DOMContentLoaded', function() {
+      const tableContainer = document.querySelector('.logs-table-container') || document.querySelector('.card.table-card');
+      if (tableContainer && !document.getElementById('showAllBtn')) {
+        const btn = document.createElement('button');
+        btn.textContent = 'Show All';
+        btn.className = 'btn outline';
+        btn.id = 'showAllBtn';
+        btn.onclick = showAllLogs;
+        tableContainer.insertBefore(btn, tableContainer.firstChild);
+      }
+    });
+    // Chart click handlers
+    function addChartClickHandlers(pieChart, barChart, donutChart, anomalyTypes, severityCounts) {
+      // Pie: Normal/Anomaly
+      document.getElementById('anomalyChart').onclick = function(evt) {
+        const points = pieChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+        if (points.length) {
+          const idx = points[0].index;
+          filterLogsByNormalAnomaly(idx === 1); // 0: Normal, 1: Anomaly
+        }
+      };
+      // Bar: Severity
+      document.getElementById('vulnChart').onclick = function(evt) {
+        const points = barChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+        if (points.length) {
+          const idx = points[0].index;
+          const sevs = ['Critical', 'High', 'Medium', 'Low'];
+          filterLogsBySeverity(sevs[idx]);
+        }
+      };
+      // Donut: Anomaly Type
+      document.getElementById('anomalyTypeChart').onclick = function(evt) {
+        const points = donutChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+        if (points.length) {
+          const idx = points[0].index;
+          const type = anomalyTypes[idx] && anomalyTypes[idx].type;
+          if (type) filterLogsByType(type);
+        }
+      };
+    }
 </script>
+</body>
+</html>
 {% endblock %} 

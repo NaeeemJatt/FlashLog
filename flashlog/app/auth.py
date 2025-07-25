@@ -295,42 +295,13 @@ def login():
 @auth.route('/logout')
 def logout():
     """User logout with secure session termination"""
-    if 'session_token' in session:
-        # Remove session from database
-        conn = get_db_connection()
-        conn.execute(
-            'DELETE FROM user_sessions WHERE session_token = ?',
-            (session['session_token'],)
-        )
-        conn.commit()
-        conn.close()
-    
-    # Log logout activity before clearing session
-    if 'user_id' in session:
-        from .routes import log_user_activity
-        log_user_activity(
-            user_id=session['user_id'],
-            activity_type='logout',
-            description=f'User logged out',
-            details=f'Logout from session: {session.get("session_token", "")[:8] if session.get("session_token") else "unknown"}...',
-            status='success',
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent', 'Unknown')
-        )
-    
-    # Clear session completely
+    anomaly_types_path = session.get('anomaly_types_path')
+    if anomaly_types_path and os.path.exists(anomaly_types_path):
+        os.remove(anomaly_types_path)
+    session.pop('anomaly_types_path', None)
     session.clear()
-    
-    # Set cache control headers to prevent back button access
-    response = redirect(url_for('auth.auth_page'))
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    
-    flash('You have been logged out successfully!', 'success')
-    return response
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('auth.auth_page'))
 
 @auth.route('/auth')
 def auth_page():

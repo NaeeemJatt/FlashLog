@@ -10,6 +10,7 @@ import numpy as np
 from collections import Counter
 from transformers import pipeline
 from .helpers import classify_all_anomalies
+import json
 
 def log_user_activity(user_id, activity_type, description, details=None, status='success', ip_address=None, user_agent=None, file_name=None, file_size=None, processing_time=None, anomalies_detected=None, total_logs=None, old_value=None, new_value=None):
     """Log user activity to the database with enhanced tracking"""
@@ -407,10 +408,16 @@ def flashlog_dashboard():
     # AI summary: always generate if not present
     loglines = [row['logline'] for row in kibana_data.get('table_data', [])[:50] if row.get('logline')]
     ai_summary = generate_ai_summary(loglines, list(anomaly_types.keys()), mitigation_map)
+    # Load anomaly_types from temp file if available
+    anomaly_types = []
+    anomaly_types_path = session.get('anomaly_types_path')
+    if anomaly_types_path and os.path.exists(anomaly_types_path):
+        with open(anomaly_types_path, 'r') as f:
+            anomaly_types = json.load(f)
     return render_template('flashlog_dashboard.html', 
                          analysis_summary=analysis_summary,
                          severity_counts=dict(severity_counts),
-                         anomaly_types=dict(anomaly_types),
+                         anomaly_types=anomaly_types,
                          kibana_data=kibana_data,
                          results=analysis_results,
                          ai_summary=ai_summary)
@@ -418,75 +425,17 @@ def flashlog_dashboard():
 @main.route('/api/dashboard-data', methods=['GET'])
 @login_required
 def api_dashboard_data():
-    run_id = session.get('current_run')
-    if not run_id:
-        print("[ERROR] No run_id found in session, cannot retrieve anomalies.")
-        return jsonify({'error': 'No analysis run found in session'}), 400
-    cache_key = f"anomaly_types_{run_id}"
-    anomaly_types = session.get(cache_key)
-    if anomaly_types is not None:
-        print(f"[DEBUG] Using pre-classified anomaly results from session for run_id: {run_id}")
-        data = {
-            'anomalyTypes': anomaly_types if anomaly_types else []
-        }
-        return jsonify(data)
-    else:
-        print(f"[DEBUG] No pre-classified results found for run_id: {run_id}, performing classification.")
-        # Fallback to classification if not already done (shouldn't happen with new workflow)
-        try:
-            from .auth import get_db_connection
-            import json
-            conn = get_db_connection()
-            row = conn.execute('SELECT results_json FROM analysis_runs WHERE run_id = ?', (run_id,)).fetchone()
-            conn.close()
-            if not row:
-                print(f"[DEBUG] No results found in DB for run_id: {run_id}")
-                anomalies = []
-            else:
-                analysis_results = json.loads(row['results_json'])
-                print(f"[DEBUG] Loaded results from DB for run_id {run_id}, length: {len(analysis_results) if isinstance(analysis_results, list) else 'N/A'}")
-                if isinstance(analysis_results, list):
-                    anomalies = [row for row in analysis_results if row.get('is_anomaly') == True or row.get('is_anomaly') == 1]
-                else:
-                    anomalies = []
-                print(f"[DEBUG] Retrieved {len(anomalies)} anomalies for classification for run_id: {run_id}")
-        except Exception as e:
-            print(f"[ERROR] Failed to retrieve results for run_id {run_id}: {e}")
-            return jsonify({'error': 'Failed to retrieve analysis results'}), 500
-        if anomalies and len(anomalies) > 0:
-            print(f"[DEBUG] Found {len(anomalies)} anomalies to classify, calling external API (fallback due to missing session data).")
-            from .helpers import classify_all_anomalies
-            external_results = classify_all_anomalies(anomalies)
-            anomaly_types = []
-            total_classified_count = 0
-            for item in external_results:
-                if isinstance(item, dict):
-                    count = item.get('count', 0)
-                    total_classified_count += count
-                    anomaly_types.append({
-                        'type': item.get('type'),
-                        'severity': item.get('severity'),
-                        'count': count
-                    })
-                elif isinstance(item, list):
-                    for sub_item in item:
-                        if isinstance(sub_item, dict):
-                            count = sub_item.get('count', 0)
-                            total_classified_count += count
-                            anomaly_types.append({
-                                'type': sub_item.get('type'),
-                                'severity': sub_item.get('severity'),
-                                'count': count
-                            })
-            print(f"[DEBUG] Total anomalies classified by API: {total_classified_count} out of {len(anomalies)} sent.")
-            session[cache_key] = anomaly_types
-        else:
-            anomaly_types = []
-            session[cache_key] = anomaly_types
-            print(f"[DEBUG] No anomalies to classify for run_id {run_id}, skipping external API call.")
-    # Prepare data for dashboard
+    anomaly_types = []
+    anomaly_types_path = session.get('anomaly_types_path')
+    if anomaly_types_path and os.path.exists(anomaly_types_path):
+        with open(anomaly_types_path, 'r') as f:
+            anomaly_types = json.load(f)
+    severity_counts = session.get('severity_counts', {})
+    analysis_summary = session.get('analysis_summary', {})
     data = {
-        'anomalyTypes': anomaly_types if anomaly_types else []
+        'anomalyTypes': anomaly_types,
+        'severityCounts': severity_counts,
+        'analysisSummary': analysis_summary
     }
     return jsonify(data)
 

@@ -17,9 +17,10 @@ def analyzed_logs():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     analysis_summary = session.get('analysis_summary', {})
-    print(f"[DEBUG] Session keys on load: {list(session.keys())}")
+    # Remove debug prints
+    # print(f"[DEBUG] Session keys on load: {list(session.keys())}")
     run_id = session.get('current_run')
-    print(f"[DEBUG] run_id in session: {run_id}")
+    # print(f"[DEBUG] run_id in session: {run_id}")
     if not run_id:
         print("[DEBUG] No run_id in session - redirecting to dashboard")
         flash('No analysis run found. Please analyze a log file first.')
@@ -33,7 +34,8 @@ def analyzed_logs():
             flash('Analysis results expired or not found.')
             return redirect('/user/dashboard')
         analysis_results = json.loads(row['results_json'])
-        print(f"[DEBUG] Loaded results from DB, length: {len(analysis_results)}")
+        # Remove debug prints
+        # print(f"[DEBUG] Loaded results from DB, length: {len(analysis_results)}")
     except Exception as e:
         print(f"[DEBUG] Error loading from DB: {str(e)}")
         flash('Error loading analysis results from storage.', 'error')

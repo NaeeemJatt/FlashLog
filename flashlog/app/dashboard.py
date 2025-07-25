@@ -5,12 +5,12 @@ from .logai_handler import process_log_file
 from .routes import log_user_activity
 from datetime import datetime
 import os
-from .auth import get_db_connection
-import uuid
 import json
 import pandas as pd
 import numpy as np
 from flask_login import login_required
+import uuid
+from .auth import get_db_connection
 
 # Create a blueprint for dashboard-related routes
 
@@ -35,6 +35,7 @@ def index():
 
 @dashboard_bp.route('/analyze', methods=['POST'])
 def analyze():
+    print("[DEBUG] /analyze route called")
     if session.get('role') == 'admin':
         return redirect(url_for('admin.dashboard'))
     parser = request.form.get('parser')
@@ -53,6 +54,7 @@ def analyze():
     filename = secure_filename(file.filename)
     filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
+    print(f"[DEBUG] File saved to {filepath}, starting analysis...")
     if os.path.getsize(filepath) > 10 * 1024 * 1024:
         os.remove(filepath)
         flash('File too large (max 10MB)', 'error')
@@ -60,6 +62,7 @@ def analyze():
     try:
         try:
             results, _ = process_log_file(filepath, parser, model, index_name)
+            print(f"[DEBUG] Analysis complete. Results type: {type(results)}, length: {len(results)}")
             def convert_timestamps(obj):
                 if isinstance(obj, pd.DataFrame):
                     for col in obj.columns:
@@ -83,15 +86,52 @@ def analyze():
             conn.commit()
             conn.close()
             session['current_run'] = run_id
+            total_logs = len(results)
+            anomaly_count = results['is_anomaly'].sum() if hasattr(results, 'is_anomaly') else 0
+            success_rate = round((total_logs - anomaly_count) / total_logs * 100, 2) if total_logs > 0 else 0
             session['analysis_summary'] = {
-                'total_logs': len(results),
-                'total_anomalies': results['is_anomaly'].sum() if hasattr(results, 'is_anomaly') else 0,
+                'total_logs': total_logs,
+                'total_anomalies': anomaly_count,
+                'success_rate': success_rate,
                 'index_name': index_name,
                 'parser': parser,
                 'model': model,
                 'created_at': datetime.now().isoformat()
             }
+            print(f"[DEBUG] Analysis summary: {session['analysis_summary']}")
+            # Immediately classify anomalies and store in temp file
+            anomalies = []
+            if hasattr(results, 'to_dict'):
+                anomalies = [row for row in results.to_dict(orient='records') if row.get('is_anomaly')]
+            elif isinstance(results, list):
+                anomalies = [row for row in results if row.get('is_anomaly')]
+            anomaly_types = []
+            if anomalies:
+                print(f"[DEBUG] {len(anomalies)} anomalies detected, calling external API...")
+                from .helpers import classify_all_anomalies
+                anomaly_types = classify_all_anomalies(anomalies)
+                print(f"[DEBUG] API returned {len(anomaly_types)} anomaly types.")
+            else:
+                print("[DEBUG] No anomalies to classify.")
+            # Save anomaly_types to temp file
+            tmp_dir = 'uploads/tmp'
+            os.makedirs(tmp_dir, exist_ok=True)
+            anomaly_types_path = os.path.join(tmp_dir, f'anomaly_types_{run_id}.json')
+            print(f"[DEBUG] Saving anomaly types to temp file for run_id: {run_id}")
+            with open(anomaly_types_path, 'w') as f:
+                json.dump(anomaly_types, f)
+            print(f"[DEBUG] anomaly_types saved to temp file: {anomaly_types}")
+            session['anomaly_types_path'] = anomaly_types_path
             session.modified = True
+            # Save severity counts for dashboard (sum from anomaly_types)
+            severity_counts = {'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0}
+            for item in anomaly_types:
+                sev = item.get('severity')
+                cnt = item.get('count', 0)
+                if sev in severity_counts:
+                    severity_counts[sev] += cnt
+            session['severity_counts'] = severity_counts
+            print("[DEBUG] Redirecting to analyzed logs page...")
             return redirect(url_for('upload.analyzed_logs'))
         except Exception as e:
             flash(f'Error saving analysis results: {str(e)}', 'error')

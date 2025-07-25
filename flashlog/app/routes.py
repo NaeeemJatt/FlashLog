@@ -895,7 +895,20 @@ def dashboard():
         # Handle GET request by rendering the admin dashboard template
         # Prioritize admin/dashboard.html for admin users
         try:
-            return render_template('admin/dashboard.html', title='Admin Dashboard')
+            from .auth import get_db_connection
+            from datetime import datetime, timedelta
+            conn = get_db_connection()
+            total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+            active_users = conn.execute('SELECT COUNT(*) FROM users WHERE is_active = 1').fetchone()[0]
+            admin_users = conn.execute('SELECT COUNT(*) FROM users WHERE role = "admin"').fetchone()[0]
+            since = (datetime.utcnow() - timedelta(days=1)).isoformat(sep=' ', timespec='seconds')
+            recent_logins = conn.execute('SELECT COUNT(*) FROM users WHERE last_login >= ?', (since,)).fetchone()[0]
+            conn.close()
+            return render_template('admin/dashboard.html', title='Admin Dashboard',
+                                  total_users=total_users,
+                                  active_users=active_users,
+                                  admin_users=admin_users,
+                                  recent_logins=recent_logins)
         except Exception as e:
             print(f"[ERROR] Template rendering failed for admin/dashboard.html: {e}")
             try:

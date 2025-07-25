@@ -404,7 +404,6 @@ def profile():
                 profile_messages.append((category, message))
         
         # Clear all flash messages and re-add only profile-related ones
-        from flask import session
         if '_flashes' in session:
             del session['_flashes']
         

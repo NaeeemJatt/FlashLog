@@ -10,7 +10,7 @@ This project implements an intelligent log analysis and anomaly detection system
 - **Intelligent Parsing**: Advanced log parsing algorithms (Drain, AEL, IPLOM)
 - **Pattern Recognition**: Identifies common patterns and sequences
 - **Feature Extraction**: Extracts meaningful features for analysis
-- **Anomaly Detection**: Isolation Forest, LOF, One-Class SVM, Neural Networks (LSTM, CNN, Transformer)
+- **Anomaly Detection**: Isolation Forest, LOF, One-Class SVM 
 - **Clustering**: K-means, DBSCAN, BIRCH
 - **Web Interface**: Modern Flask-based GUI for log upload and analysis
 
@@ -19,16 +19,27 @@ This project implements an intelligent log analysis and anomaly detection system
 ```
 FYP/
 ├── api/                  # API entrypoint (for serverless deployment)
+│   └── index.py          # Vercel serverless function
 ├── flashlog/             # Main Flask web application
-│   ├── app/              # Flask app code
-│   ├── templates/        # HTML templates
-│   └── requirements.txt  # Python dependencies
+│   ├── app/              # Flask app code (routes, auth, admin, dashboard, etc.)
+│   ├── templates/        # HTML templates (Jinja2)
+│   ├── static/           # Static files (JS, CSS)
+│   ├── uploads/          # User-uploaded and processed log files
+│   ├── models/           # AI/ML models (e.g., t5-small)
+│   ├── ollama/           # (Optional) LLM Docker setup
+│   ├── requirements.txt  # Python dependencies for Flask app
+│   ├── run.py            # Flask app entry point
+│   ├── create_emergency_admin.py # Emergency admin script
+│   ├── migrate_db.py     # Database migration script
+│   └── users.db          # SQLite database (excluded from git)
 ├── logai/                # Core log analysis library
-│   └── logai/            # Main library code
-├── scripts/              # Utility scripts
+│   ├── logai/            # Main library code (algorithms, applications, utils, etc.)
+│   └── tests/            # Library tests
 ├── logs/                 # (Optional) Sample log files (not required for production)
 ├── requirements.txt      # Root dependencies
 ├── .gitignore            # Git ignore rules
+├── .vercelignore         # Vercel ignore rules
+├── vercel.json           # Vercel configuration
 └── README.md             # Project documentation
 ```
 
@@ -42,8 +53,8 @@ FYP/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/NaeeemJatt/FYP-Log-Analysis-and-Anomaly-Detection-using-AI.git
-   cd FYP-Log-Analysis-and-Anomaly-Detection-using-AI
+   git clone https://github.com/NaeeemJatt/FlashLog.git
+   cd FlashLog
    ```
 
 2. **Create virtual environment**
@@ -57,7 +68,6 @@ FYP/
 
 3. **Install dependencies**
    ```bash
-   pip install -r requirements.txt
    cd flashlog
    pip install -r requirements.txt
    ```

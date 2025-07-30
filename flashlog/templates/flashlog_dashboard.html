@@ -360,11 +360,12 @@
   <section class="card table-card">
     <div class="table-bar">
       <h2>Logs</h2>
+      <div id="filterIndicator" style="margin-left: 1rem; color: var(--primary); font-weight: 500;"></div>
       <div class="table-tools">
         <input type="text" id="searchInput" placeholder="Search log text" />
         <button class="btn outline" id="exportCsv">Export CSV</button>
+      </div>
     </div>
-  </div>
     <div class="table-wrap">
       <table class="logs-table">
         <thead>
@@ -372,7 +373,10 @@
             <th>Timestamp</th>
             <th>Log</th>
             <th>Anomaly</th>
+            <th>Anomaly Type</th>
             <th>Severity</th>
+            <th>Anomaly Reason</th>
+            <th>Mitigation</th>
           </tr>
         </thead>
         <tbody id="logsTableBody"></tbody>
@@ -529,12 +533,22 @@
       const pageRows=filteredLogs.slice(start,end);
 
       for(const row of pageRows){
+        const timestamp = row.timestamp || '-';
+        const log = row.log || row.logline || '-';
+        const anomaly = typeof row.anomaly !== 'undefined' ? row.anomaly : (typeof row.is_anomaly !== 'undefined' ? (row.is_anomaly ? 'Anomaly' : 'Normal') : '-');
+        const anomalyType = row.anomaly_type || '-';
+        const severity = row.severity || '-';
+        const anomalyReason = row.anomaly_reason || '-';
+        const mitigation = row.mitigation || '-';
         const tr=document.createElement('tr');
         tr.innerHTML=`
-          <td>${row.timestamp || ''}</td>
-          <td title="${escapeHtml(row.log || '')}">${truncate(row.log || '',90)}</td>
-          <td>${row.anomaly || ''}</td>
-          <td>${row.severity || ''}</td>
+          <td>${timestamp}</td>
+          <td title="${escapeHtml(log)}">${truncate(log,90)}</td>
+          <td>${anomaly}</td>
+          <td>${anomalyType}</td>
+          <td>${severity}</td>
+          <td>${anomalyReason}</td>
+          <td>${mitigation}</td>
         `;
         tbody.appendChild(tr);
       }
@@ -582,36 +596,52 @@
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
       }[m]));
     }
+    // Filter indicator logic
+    function setFilterIndicator(text) {
+      const el = document.getElementById('filterIndicator');
+      if (el) el.textContent = text || '';
+    }
+
     function filterLogsByType(type) {
-      filteredLogs = allLogs.filter(r => (r.anomaly_type || r.type || r.anomaly) === type);
+      filteredLogs = allLogs.filter(r => {
+        const anomalyType = (r.anomaly_type || r.type || r.anomaly || '').toString().toLowerCase();
+        return anomalyType === (type || '').toString().toLowerCase();
+      });
       currentPage = 1;
+      setFilterIndicator(type ? `Showing: Anomaly Type: ${type}` : '');
       renderTable();
     }
     function filterLogsBySeverity(sev) {
-      filteredLogs = allLogs.filter(r => (r.severity || '').toLowerCase() === sev.toLowerCase());
+      filteredLogs = allLogs.filter(r => {
+        const severity = (r.severity || '').toString().toLowerCase();
+        return severity === (sev || '').toString().toLowerCase();
+      });
       currentPage = 1;
+      setFilterIndicator(sev ? `Showing: Severity: ${sev}` : '');
       renderTable();
     }
     function filterLogsByNormalAnomaly(isAnomaly) {
       filteredLogs = allLogs.filter(r => {
-        if (typeof r.is_anomaly !== 'undefined') return !!r.is_anomaly === isAnomaly;
+        if (typeof r.is_anomaly !== 'undefined') return Boolean(r.is_anomaly) === isAnomaly;
         if (typeof r.anomaly === 'string') return (r.anomaly.toLowerCase() === 'anomaly') === isAnomaly;
         return false;
       });
       currentPage = 1;
+      setFilterIndicator(isAnomaly ? 'Showing: Anomaly' : 'Showing: Normal');
       renderTable();
     }
     function showAllLogs() {
-      filteredLogs = allLogs.slice();
+      filteredLogs = [];
       currentPage = 1;
+      setFilterIndicator('');
       renderTable();
     }
-    // Add Show All button
+    // Add Reset Filters button
     window.addEventListener('DOMContentLoaded', function() {
       const tableContainer = document.querySelector('.logs-table-container') || document.querySelector('.card.table-card');
       if (tableContainer && !document.getElementById('showAllBtn')) {
         const btn = document.createElement('button');
-        btn.textContent = 'Show All';
+        btn.textContent = 'Reset Filters';
         btn.className = 'btn outline';
         btn.id = 'showAllBtn';
         btn.onclick = showAllLogs;

@@ -432,10 +432,28 @@ def api_dashboard_data():
             anomaly_types = json.load(f)
     severity_counts = session.get('severity_counts', {})
     analysis_summary = session.get('analysis_summary', {})
+
+    # Fetch the latest analysis logs for the current user/session
+    logs = []
+    run_id = session.get('current_run')
+    if run_id:
+        from .auth import get_db_connection
+        import json as _json
+        conn = get_db_connection()
+        row = conn.execute('SELECT results_json FROM analysis_runs WHERE run_id = ?', (run_id,)).fetchone()
+        conn.close()
+        if row:
+            try:
+                logs = _json.loads(row['results_json'])
+            except Exception as e:
+                print(f"[API] Error loading logs for dashboard-data: {e}")
+                logs = []
+
     data = {
         'anomalyTypes': anomaly_types,
         'severityCounts': severity_counts,
-        'analysisSummary': analysis_summary
+        'analysisSummary': analysis_summary,
+        'logs': logs
     }
     return jsonify(data)
 

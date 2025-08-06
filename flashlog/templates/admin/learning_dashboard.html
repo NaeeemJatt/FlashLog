@@ -5,7 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Continuous Learning Dashboard - FlashLog Admin</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="data:text/css;base64," data-version="1.0">
     <style>
+        :root{
+          --bg:#f5f6f9;
+          --bg-card:#ffffff;
+          --bg-alt:#f3f4f6;
+          --text:#1f2937;
+          --text-light:#6b7280;
+          --border:#e5e7eb;
+          --primary:#0ea5e9;
+          --danger:#ef4444;
+          --warning:#f59e0b;
+          --success:#22c55e;
+        }
+        .dark{
+          --bg:#0f172a;
+          --bg-card:#1e293b;
+          --bg-alt:#334155;
+          --text:#e2e8f0;
+          --text-light:#94a3b8;
+          --border:#475569;
+          --primary:#38bdf8;
+          --danger:#f87171;
+          --warning:#fbbf24;
+          --success:#4ade80;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -14,9 +43,9 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--bg);
             min-height: 100vh;
-            color: #333;
+            color: var(--text);
         }
         
         .container {
@@ -26,21 +55,22 @@
         }
         
         .header {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--bg-card);
             border-radius: 15px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border);
         }
         
         .header h1 {
-            color: #4a5568;
+            color: var(--text);
             font-size: 2rem;
             margin-bottom: 10px;
         }
         
         .header p {
-            color: #718096;
+            color: var(--text-light);
             font-size: 1.1rem;
         }
         
@@ -53,19 +83,21 @@
         }
         
         .summary-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--bg-card);
             border-radius: 15px;
             padding: 25px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             transition: transform 0.3s ease;
+            border: 1px solid var(--border);
         }
         
         .summary-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         
         .summary-card h3 {
-            color: #4a5568;
+            color: var(--text);
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -75,27 +107,30 @@
         .summary-card .metric {
             font-size: 2.5rem;
             font-weight: bold;
-            color: #2d3748;
+            color: var(--text);
             margin-bottom: 5px;
         }
         
         .summary-card .sub-metric {
-            color: #718096;
+            color: var(--text-light);
             font-size: 0.9rem;
         }
         
-        .summary-card.pending { border-left: 5px solid #f56565; }
-        .summary-card.approved { border-left: 5px solid #48bb78; }
-        .summary-card.improvement { border-left: 5px solid #4299e1; }
-        .summary-card.patterns { border-left: 5px solid #9f7aea; }
+        .summary-card.pending { border-left: 5px solid var(--danger); }
+        .summary-card.approved { border-left: 5px solid var(--success); }
+        .summary-card.improvement { border-left: 5px solid var(--primary); }
+        .summary-card.patterns { border-left: 5px solid var(--warning); }
+        .summary-card.impact { border-left: 5px solid var(--primary); }
         
         /* Tabs */
         .learning-tabs {
             display: flex;
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--bg-card);
             border-radius: 15px 15px 0 0;
             overflow: hidden;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border);
+            border-bottom: none;
         }
         
         .tab {
@@ -106,27 +141,29 @@
             cursor: pointer;
             font-size: 1rem;
             font-weight: 500;
-            color: #718096;
+            color: var(--text-light);
             transition: all 0.3s ease;
         }
         
         .tab.active {
-            background: #4299e1;
-            color: white;
+            background: var(--primary);
+            color: #ffffff;
         }
         
         .tab:hover:not(.active) {
-            background: rgba(66, 153, 225, 0.1);
-            color: #4299e1;
+            background: rgba(14, 165, 233, 0.1);
+            color: var(--primary);
         }
         
         /* Tab Content */
         .tab-content {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--bg-card);
             border-radius: 0 0 15px 15px;
             padding: 30px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             display: none;
+            border: 1px solid var(--border);
+            border-top: none;
         }
         
         .tab-content.active {
@@ -144,16 +181,17 @@
         
         .learning-filters select {
             padding: 10px 15px;
-            border: 2px solid #e2e8f0;
+            border: 2px solid var(--border);
             border-radius: 8px;
             font-size: 0.9rem;
-            background: white;
+            background: var(--bg-card);
             cursor: pointer;
+            color: var(--text);
         }
         
         .learning-filters select:focus {
             outline: none;
-            border-color: #4299e1;
+            border-color: var(--primary);
         }
         
         /* Buttons */
@@ -172,40 +210,40 @@
         }
         
         .btn-primary {
-            background: #4299e1;
-            color: white;
+            background: var(--primary);
+            color: #ffffff;
         }
         
         .btn-primary:hover {
-            background: #3182ce;
+            background: var(--primary);
             transform: translateY(-1px);
         }
         
         .btn-approve {
-            background: #48bb78;
-            color: white;
+            background: var(--success);
+            color: #ffffff;
         }
         
         .btn-approve:hover {
-            background: #38a169;
+            background: var(--success);
         }
         
         .btn-reject {
-            background: #f56565;
-            color: white;
+            background: var(--danger);
+            color: #ffffff;
         }
         
         .btn-reject:hover {
-            background: #e53e3e;
+            background: var(--danger);
         }
         
         .btn-details {
-            background: #9f7aea;
-            color: white;
+            background: var(--warning);
+            color: #ffffff;
         }
         
         .btn-details:hover {
-            background: #805ad5;
+            background: var(--warning);
         }
         
         /* Learning Items */
@@ -215,8 +253,8 @@
         }
         
         .learning-item {
-            background: #f7fafc;
-            border: 2px solid #e2e8f0;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
             border-radius: 12px;
             margin-bottom: 20px;
             overflow: hidden;
@@ -224,13 +262,29 @@
         }
         
         .learning-item:hover {
-            border-color: #4299e1;
-            box-shadow: 0 4px 16px rgba(66, 153, 225, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.1), 0 2px 4px -1px rgba(14, 165, 233, 0.06);
         }
         
         .learning-item.selected {
-            border-color: #4299e1;
-            background: rgba(66, 153, 225, 0.05);
+            border-color: var(--primary);
+            background: rgba(14, 165, 233, 0.05);
+        }
+        
+        .learning-item.approved-item {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.02);
+        }
+        
+        .learning-item.approved-item:hover {
+            border-color: var(--success);
+            box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
+        }
+        
+        .applied-date {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            font-style: italic;
         }
         
         .learning-header {
@@ -238,9 +292,11 @@
             align-items: center;
             gap: 15px;
             padding: 20px;
-            background: white;
-            border-bottom: 1px solid #e2e8f0;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
         }
+        
+
         
         .algorithm-badge {
             padding: 6px 12px;
@@ -252,34 +308,34 @@
         }
         
         .algorithm-badge.isolation_forest {
-            background: rgba(72, 187, 120, 0.1);
-            color: #38a169;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
         }
         
         .algorithm-badge.lof {
-            background: rgba(66, 153, 225, 0.1);
-            color: #3182ce;
+            background: rgba(14, 165, 233, 0.1);
+            color: var(--primary);
         }
         
         .algorithm-badge.one_class_svm {
-            background: rgba(159, 122, 234, 0.1);
-            color: #805ad5;
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
         }
         
         .algorithm-badge.ensemble {
-            background: rgba(245, 101, 101, 0.1);
-            color: #e53e3e;
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
         }
         
         .algorithm-badge.pattern_recognition {
-            background: rgba(237, 137, 54, 0.1);
-            color: #dd6b20;
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
         }
         
         .learning-type {
             padding: 4px 10px;
-            background: rgba(113, 128, 150, 0.1);
-            color: #4a5568;
+            background: rgba(107, 114, 128, 0.1);
+            color: var(--text-light);
             border-radius: 15px;
             font-size: 0.8rem;
             font-weight: 500;
@@ -288,19 +344,19 @@
         .confidence-score {
             margin-left: auto;
             font-weight: 600;
-            color: #4a5568;
+            color: var(--text-light);
         }
         
         .confidence-score.high {
-            color: #38a169;
+            color: var(--success);
         }
         
         .confidence-score.medium {
-            color: #d69e2e;
+            color: var(--warning);
         }
         
         .confidence-score.low {
-            color: #e53e3e;
+            color: var(--danger);
         }
         
         .learning-content {
@@ -308,17 +364,17 @@
         }
         
         .learning-content h4 {
-            color: #2d3748;
+            color: var(--text);
             margin-bottom: 10px;
             font-size: 1.1rem;
         }
         
         .potential-improvement {
-            color: #4a5568;
+            color: var(--text-light);
             margin-bottom: 15px;
             padding: 10px;
-            background: rgba(72, 187, 120, 0.05);
-            border-left: 3px solid #48bb78;
+            background: rgba(34, 197, 94, 0.05);
+            border-left: 3px solid var(--success);
             border-radius: 5px;
         }
         
@@ -327,14 +383,14 @@
         }
         
         .parameter-suggestions h5 {
-            color: #4a5568;
+            color: var(--text-light);
             margin-bottom: 8px;
             font-size: 0.9rem;
         }
         
         .parameter-suggestions pre {
-            background: #2d3748;
-            color: #e2e8f0;
+            background: var(--bg-alt);
+            color: var(--text);
             padding: 12px;
             border-radius: 6px;
             font-size: 0.8rem;
@@ -346,27 +402,27 @@
         }
         
         .evidence-logs h5 {
-            color: #4a5568;
+            color: var(--text-light);
             margin-bottom: 8px;
             font-size: 0.9rem;
         }
         
         .log-example {
-            background: #f1f5f9;
+            background: var(--bg-alt);
             padding: 8px 12px;
-            border-left: 3px solid #cbd5e0;
+            border-left: 3px solid var(--border);
             margin-bottom: 5px;
             font-family: 'Courier New', monospace;
             font-size: 0.8rem;
-            color: #4a5568;
+            color: var(--text-light);
         }
         
         .learning-actions {
             display: flex;
             gap: 10px;
             padding: 20px;
-            background: #f7fafc;
-            border-top: 1px solid #e2e8f0;
+            background: var(--bg-alt);
+            border-top: 1px solid var(--border);
         }
         
         /* Batch Selection */
@@ -374,7 +430,7 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: white;
+            background: var(--bg-card);
             padding: 15px 20px;
             border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
@@ -402,8 +458,8 @@
             width: 20px;
             height: 20px;
             margin: -10px 0 0 -10px;
-            border: 2px solid #e2e8f0;
-            border-top: 2px solid #4299e1;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -432,7 +488,7 @@
         }
         
         .modal {
-            background: white;
+            background: var(--bg-card);
             border-radius: 15px;
             padding: 30px;
             max-width: 500px;
@@ -440,7 +496,10 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             position: relative;
             animation: modalSlideIn 0.3s ease-out;
+            border: 1px solid var(--border);
         }
+        
+
         
         @keyframes modalSlideIn {
             from {
@@ -459,13 +518,13 @@
             align-items: center;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid var(--border);
         }
         
         .modal-title {
             font-size: 1.5rem;
             font-weight: 600;
-            color: #2d3748;
+            color: var(--text);
             display: flex;
             align-items: center;
             gap: 10px;
@@ -476,15 +535,15 @@
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
-            color: #718096;
+            color: var(--text-light);
             padding: 5px;
             border-radius: 5px;
             transition: all 0.2s ease;
         }
         
         .modal-close:hover {
-            background: #f7fafc;
-            color: #e53e3e;
+            background: var(--bg-alt);
+            color: var(--danger);
         }
         
         .simulation-results {
@@ -496,7 +555,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid var(--border);
         }
         
         .result-item:last-child {
@@ -505,28 +564,28 @@
         
         .result-label {
             font-weight: 500;
-            color: #4a5568;
+            color: var(--text-light);
         }
         
         .result-value {
             font-weight: 600;
-            color: #2d3748;
+            color: var(--text);
         }
         
         .result-value.improvement {
-            color: #38a169;
+            color: var(--success);
         }
         
         .result-value.risk-low {
-            color: #38a169;
+            color: var(--success);
         }
         
         .result-value.risk-medium {
-            color: #d69e2e;
+            color: var(--warning);
         }
         
         .result-value.risk-high {
-            color: #e53e3e;
+            color: var(--danger);
         }
         
         .modal-actions {
@@ -547,21 +606,21 @@
         }
         
         .modal-btn-primary {
-            background: #4299e1;
-            color: white;
+            background: var(--primary);
+            color: #ffffff;
         }
         
         .modal-btn-primary:hover {
-            background: #3182ce;
+            background: var(--primary);
         }
         
         .modal-btn-secondary {
-            background: #e2e8f0;
-            color: #4a5568;
+            background: var(--bg-alt);
+            color: var(--text);
         }
         
         .modal-btn-secondary:hover {
-            background: #cbd5e0;
+            background: var(--border);
         }
         
         /* Responsive */
@@ -629,6 +688,12 @@
                 <div class="metric">{{ pattern_library|length }}</div>
                 <div class="sub-metric">Detection patterns</div>
             </div>
+            
+            <div class="summary-card impact">
+                <h3>Learning Impact</h3>
+                <div class="metric">{{ "%.1f"|format(impact_data.average_improvements.detection_improvement|default(0)) }}%</div>
+                <div class="sub-metric">Average improvement</div>
+            </div>
         </div>
 
         <!-- Learning Categories -->
@@ -636,7 +701,9 @@
             <button class="tab active" data-tab="pending">📋 Pending Review</button>
             <button class="tab" data-tab="patterns">🔍 Pattern Library</button>
             <button class="tab" data-tab="metrics">📊 Performance Metrics</button>
+            <button class="tab" data-tab="impact">🎯 Learning Impact</button>
             <button class="tab" data-tab="history">📚 Learning History</button>
+            <button class="tab" data-tab="approved">✅ Approved Learnings</button>
         </div>
 
         <!-- Pending Learnings Tab -->
@@ -725,7 +792,7 @@
                 {% endfor %}
                 
                 {% if not pending_learnings %}
-                <div style="text-align: center; padding: 40px; color: #718096;">
+                <div style="text-align: center; padding: 40px; color: var(--text-light);">
                     <h3>🎉 No pending learnings!</h3>
                     <p>All algorithm learnings have been reviewed.</p>
                 </div>
@@ -756,7 +823,7 @@
                                 <h5>🔧 Pattern:</h5>
                                 <pre>{{ pattern.pattern_regex }}</pre>
                             </div>
-                            <div style="display: flex; gap: 20px; font-size: 0.9rem; color: #718096;">
+                            <div style="display: flex; gap: 20px; font-size: 0.9rem; color: var(--text-light);">
                                 <span>🎯 Detected: {{ pattern.detection_count }}</span>
                                 <span>❌ False Positives: {{ pattern.false_positive_count }}</span>
                             </div>
@@ -770,7 +837,7 @@
         <!-- Performance Metrics Tab -->
         <div id="metrics-tab" class="tab-content">
             <h3>📊 Learning Performance Metrics</h3>
-            <p style="color: #718096; margin-bottom: 20px;">Track how well applied learnings improve system performance</p>
+            <p style="color: var(--text-light); margin-bottom: 20px;">Track how well applied learnings improve system performance</p>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
                 {% for metric in learning_metrics %}
@@ -783,14 +850,185 @@
             </div>
         </div>
 
+        <!-- Learning Impact Tab -->
+        <div id="impact-tab" class="tab-content">
+            <h3>🎯 Learning Impact Tracking</h3>
+            <p style="color: var(--text-light); margin-bottom: 20px;">See how approved learnings have improved analysis performance</p>
+            
+            <!-- Impact Summary Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <div class="summary-card">
+                    <h3>Detection Improvement</h3>
+                    <div class="metric">{{ "%.1f"|format(impact_data.average_improvements.detection_improvement|default(0)) }}%</div>
+                    <div class="sub-metric">Average improvement</div>
+                </div>
+                
+                <div class="summary-card">
+                    <h3>Confidence Improvement</h3>
+                    <div class="metric">{{ "%.1f"|format(impact_data.average_improvements.confidence_improvement|default(0)) }}%</div>
+                    <div class="sub-metric">Average improvement</div>
+                </div>
+                
+                <div class="summary-card">
+                    <h3>Accuracy Improvement</h3>
+                    <div class="metric">{{ "%.1f"|format(impact_data.average_improvements.accuracy_improvement|default(0)) }}%</div>
+                    <div class="sub-metric">Average improvement</div>
+                </div>
+                
+                <div class="summary-card">
+                    <h3>Sessions Tracked</h3>
+                    <div class="metric">{{ impact_data.total_sessions_tracked }}</div>
+                    <div class="sub-metric">Analysis sessions</div>
+                </div>
+            </div>
+            
+            <!-- Recent Impact Data -->
+            <h4 style="margin-top: 30px; margin-bottom: 15px;">Recent Analysis Sessions</h4>
+            <div class="learning-list">
+                {% for impact in impact_data.recent_impact %}
+                <div class="learning-item">
+                    <div class="learning-header">
+                        <div class="algorithm-badge ensemble">
+                            Session {{ impact.session_id[:8] }}
+                        </div>
+                        <div class="learning-type">{{ impact.created_at|default('Unknown') }}</div>
+                        <div class="confidence-score high">
+                            {{ impact.current_metrics.anomalies_detected }} anomalies detected
+                        </div>
+                    </div>
+                    
+                    <div class="learning-content">
+                        <h4>Learning Impact Summary</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                            <div>
+                                <strong>Detection Improvement:</strong> 
+                                <span style="color: var(--success);">{{ "%.1f"|format(impact.improvements.detection_improvement|default(0)) }}%</span>
+                            </div>
+                            <div>
+                                <strong>Confidence Improvement:</strong> 
+                                <span style="color: var(--success);">{{ "%.1f"|format(impact.improvements.confidence_improvement|default(0)) }}%</span>
+                            </div>
+                            <div>
+                                <strong>Accuracy Improvement:</strong> 
+                                <span style="color: var(--success);">{{ "%.1f"|format(impact.improvements.accuracy_improvement|default(0)) }}%</span>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 15px; padding: 10px; background: var(--bg-alt); border-radius: 8px;">
+                            <strong>Current Metrics:</strong> {{ impact.current_metrics.total_logs }} logs analyzed, 
+                            {{ impact.current_metrics.anomalies_detected }} anomalies detected 
+                            ({{ "%.1f"|format(impact.current_metrics.anomaly_rate * 100) }}% rate)
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if not impact_data.recent_impact %}
+            <div style="text-align: center; padding: 40px; color: var(--text-light);">
+                <h4>No Impact Data Yet</h4>
+                <p>Impact tracking will appear here after approved learnings are applied and new analyses are performed.</p>
+            </div>
+            {% endif %}
+        </div>
+
         <!-- Learning History Tab -->
         <div id="history-tab" class="tab-content">
             <h3>📚 Learning History</h3>
-            <p style="color: #718096;">Track of all learning activities and their outcomes</p>
+            <p style="color: var(--text-light);">Track of all learning activities and their outcomes</p>
             
-            <div style="margin-top: 20px; text-align: center; padding: 40px; color: #718096;">
+            <div style="margin-top: 20px; text-align: center; padding: 40px; color: var(--text-light);">
                 <h4>Coming Soon</h4>
                 <p>Comprehensive learning history and analytics</p>
+            </div>
+        </div>
+
+        <!-- Approved Learnings Tab -->
+        <div id="approved-tab" class="tab-content">
+            <h3>✅ Approved Learnings</h3>
+            <p style="color: var(--text-light);">List of all successfully applied and approved learnings.</p>
+            
+            <div class="learning-filters">
+                <select id="approved-algorithm-filter">
+                    <option value="">All Algorithms</option>
+                    <option value="isolation_forest">Isolation Forest</option>
+                    <option value="lof">LOF</option>
+                    <option value="one_class_svm">One-Class SVM</option>
+                    <option value="ensemble">Ensemble</option>
+                    <option value="pattern_recognition">Pattern Recognition</option>
+                </select>
+                
+                <select id="approved-type-filter">
+                    <option value="">All Types</option>
+                    <option value="parameter">Parameter Optimization</option>
+                    <option value="pattern">Pattern Recognition</option>
+                    <option value="feature">Feature Engineering</option>
+                    <option value="threshold">Threshold Adjustment</option>
+                </select>
+            </div>
+
+            <div class="learning-list" id="approved-learning-list">
+                {% for learning in approved_learnings %}
+                <div class="learning-item approved-item" data-id="{{ learning.id }}">
+                    <div class="learning-header">
+                        <div class="algorithm-badge {{ learning.algorithm_name }}">
+                            {{ learning.algorithm_name|replace('_', ' ')|title }}
+                        </div>
+                        <div class="learning-type">{{ learning.learning_type|title }}</div>
+                        <div class="confidence-score {% if learning.confidence_score > 0.7 %}high{% elif learning.confidence_score > 0.5 %}medium{% else %}low{% endif %}">
+                            Confidence: {{ "%.0f"|format(learning.confidence_score * 100) }}%
+                        </div>
+                        <div class="applied-date">
+                            Applied: {{ learning.applied_at|default('Unknown') }}
+                        </div>
+                    </div>
+                    
+                    <div class="learning-content">
+                        <h4>{{ learning.learning_description }}</h4>
+                        <p class="potential-improvement">
+                            <strong>💡 Applied Improvement:</strong> {{ learning.potential_improvement }}
+                        </p>
+                        
+                        {% if learning.suggested_parameters %}
+                        <div class="parameter-suggestions">
+                            <h5>🔧 Applied Parameters:</h5>
+                            <pre>{{ learning.suggested_parameters }}</pre>
+                        </div>
+                        {% endif %}
+                        
+                        {% if learning.evidence_logs %}
+                        <div class="evidence-logs">
+                            <h5>📝 Evidence Logs:</h5>
+                            <div class="log-examples">
+                                {% set evidence = learning.evidence_logs|from_json %}
+                                {% for log in evidence[:3] %}
+                                <div class="log-example">{{ log }}</div>
+                                {% endfor %}
+                                {% if evidence|length > 3 %}
+                                <div class="log-example">... and {{ evidence|length - 3 }} more logs</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="learning-actions">
+                        <button class="btn btn-details" onclick="showApprovedLearningDetails({{ learning.id }})">
+                            🔍 Details
+                        </button>
+                        <button class="btn btn-reject" onclick="deleteApprovedLearning({{ learning.id }})">
+                            🗑️ Delete Learning
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not approved_learnings %}
+                <div style="text-align: center; padding: 40px; color: var(--text-light);">
+                    <h3>📭 No approved learnings yet!</h3>
+                    <p>Approved learnings will appear here once you approve some pending learnings.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -849,8 +1087,8 @@
                     <span class="result-label">💡 Improvement:</span>
                     <span class="result-value" id="approve-improvement"></span>
                 </div>
-                <div style="margin-top: 20px; padding: 15px; background: rgba(72, 187, 120, 0.1); border-radius: 8px; border-left: 4px solid #48bb78;">
-                    <strong style="color: #38a169;">⚠️ Warning:</strong> This action will apply the learning to your anomaly detection system. This cannot be undone.
+                <div style="margin-top: 20px; padding: 15px; background: rgba(34, 197, 94, 0.1); border-radius: 8px; border-left: 4px solid var(--success);">
+                    <strong style="color: var(--success);">⚠️ Warning:</strong> This action will apply the learning to your anomaly detection system. This cannot be undone.
                 </div>
             </div>
             <div class="modal-actions">
@@ -885,15 +1123,15 @@
                     <span class="result-value" id="reject-confidence"></span>
                 </div>
                 <div style="margin-top: 20px;">
-                    <label for="reject-reason" style="display: block; margin-bottom: 8px; font-weight: 500; color: #4a5568;">
+                    <label for="reject-reason" style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text);">
                         📝 Reason for Rejection:
                     </label>
-                    <textarea id="reject-reason" rows="4" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; resize: vertical;" placeholder="Please provide a reason for rejecting this learning..."></textarea>
+                    <textarea id="reject-reason" rows="4" style="width: 100%; padding: 10px; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; resize: vertical;" placeholder="Please provide a reason for rejecting this learning..."></textarea>
                 </div>
             </div>
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-secondary" onclick="closeRejectModal()">Cancel</button>
-                <button class="modal-btn modal-btn-primary" onclick="confirmRejectLearning()" style="background: #f56565;">
+                <button class="modal-btn modal-btn-primary" onclick="confirmRejectLearning()" style="background: var(--danger);">
                     ❌ Confirm Rejection
                 </button>
             </div>
@@ -918,7 +1156,80 @@
         </div>
     </div>
 
+    <!-- Batch Confirm Modal -->
+    <div class="modal-overlay" id="batch-confirm-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">
+                    ✅ Batch Approve Learnings
+                </div>
+                <button class="modal-close" onclick="closeBatchConfirmModal()">&times;</button>
+            </div>
+            <div class="batch-confirm-content" id="batch-confirm-content">
+                <div class="result-item">
+                    <span class="result-label">📊 Selected Count:</span>
+                    <span class="result-value" id="batch-count"></span>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: rgba(34, 197, 94, 0.1); border-radius: 8px; border-left: 4px solid var(--success);">
+                    <strong style="color: var(--success);">⚠️ Warning:</strong> This action will approve and apply all selected learnings to your anomaly detection system. This cannot be undone.
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="closeBatchConfirmModal()">Cancel</button>
+                <button class="modal-btn modal-btn-primary" onclick="confirmBatchApprove()">
+                    ✅ Confirm Batch Approval
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">
+                    🗑️ Delete Approved Learning
+                </div>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="delete-content" id="delete-content">
+                <div class="result-item">
+                    <span class="result-label">🎯 Learning ID:</span>
+                    <span class="result-value" id="delete-learning-id"></span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">🧠 Algorithm:</span>
+                    <span class="result-value" id="delete-algorithm"></span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">📊 Type:</span>
+                    <span class="result-value" id="delete-type"></span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">📝 Description:</span>
+                    <span class="result-value" id="delete-description"></span>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid var(--danger);">
+                    <strong style="color: var(--danger);">⚠️ Warning:</strong> This action will delete the approved learning and revert the system to its previous state. This action cannot be undone.
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button class="modal-btn modal-btn-primary" onclick="confirmDeleteLearning()" style="background: var(--danger);">
+                    🗑️ Confirm Deletion
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Force cache refresh and ensure styles are applied
+        if (performance.navigation.type === 1) {
+            // Page was refreshed, ensure styles are applied
+            document.documentElement.style.setProperty('--bg', '#f5f6f9');
+            document.documentElement.style.setProperty('--bg-card', '#ffffff');
+        }
+        
         // Tab management
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', function() {
@@ -979,6 +1290,9 @@
 
         // Clear selection button
         document.getElementById('clear-selection').addEventListener('click', clearSelection);
+
+        // Batch approve button
+        document.getElementById('batch-approve').addEventListener('click', batchApprove);
 
         function clearSelection() {
             document.querySelectorAll('.learning-checkbox').forEach(checkbox => {
@@ -1061,10 +1375,10 @@
                     showSuccessMessage('Learning approved successfully!');
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    alert('Error: ' + result.error);
+                    showErrorMessage('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error approving learning: ' + error.message);
+                showErrorMessage('Error approving learning: ' + error.message);
             }
         }
 
@@ -1073,7 +1387,7 @@
 
             const reason = document.getElementById('reject-reason').value.trim();
             if (!reason) {
-                alert('Please provide a reason for rejection');
+                showErrorMessage('Please provide a reason for rejection');
                 return;
             }
             
@@ -1095,17 +1409,21 @@
                     showSuccessMessage('Learning rejected successfully!');
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    alert('Error: ' + result.error);
+                    showErrorMessage('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error rejecting learning: ' + error.message);
+                showErrorMessage('Error rejecting learning: ' + error.message);
             }
         }
 
         async function batchApprove() {
-            if (selectedLearnings.size === 0) return;
+            if (selectedLearnings.size === 0) {
+                showErrorMessage('No learnings selected. Please select learnings to approve.');
+                return;
+            }
             
-            if (!confirm(`Are you sure you want to approve ${selectedLearnings.size} learnings?`)) return;
+            // Show custom confirmation modal
+            showBatchConfirmModal(selectedLearnings.size);
             
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -1123,13 +1441,13 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert(`Batch approval completed!\nSuccessful: ${result.summary.successful}\nFailed: ${result.summary.failed}`);
+                    showSuccessMessage(`Batch approval completed! Successful: ${result.summary.successful}, Failed: ${result.summary.failed}`);
                     location.reload();
                 } else {
-                    alert('Error: ' + result.error);
+                    showErrorMessage('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error with batch approval: ' + error.message);
+                showErrorMessage('Error with batch approval: ' + error.message);
             }
         }
 
@@ -1141,10 +1459,10 @@
                 if (result.success) {
                     showDetailsModal(result.details);
                 } else {
-                    alert('Error loading details: ' + result.error);
+                    showErrorMessage('Error loading details: ' + result.error);
                 }
             } catch (error) {
-                alert('Error loading details: ' + error.message);
+                showErrorMessage('Error loading details: ' + error.message);
             }
         }
 
@@ -1155,7 +1473,7 @@
             // Create detailed HTML content
             const detailsHTML = `
                 <div style="margin-bottom: 20px;">
-                    <h4 style="color: #2d3748; margin-bottom: 15px;">📊 Learning Information</h4>
+                    <h4 style="color: var(--text); margin-bottom: 15px;">📊 Learning Information</h4>
                     <div class="result-item">
                         <span class="result-label">🎯 Learning ID:</span>
                         <span class="result-value">${details.learning.id}</span>
@@ -1175,21 +1493,21 @@
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h4 style="color: #2d3748; margin-bottom: 15px;">💡 Learning Description</h4>
-                    <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #4299e1;">
+                    <h4 style="color: var(--text); margin-bottom: 15px;">💡 Learning Description</h4>
+                    <div style="padding: 15px; background: var(--bg-alt); border-radius: 8px; border-left: 4px solid var(--primary);">
                         ${details.learning.learning_description}
                     </div>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h4 style="color: #2d3748; margin-bottom: 15px;">🔧 Suggested Parameters</h4>
-                    <pre style="background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 8px; overflow-x: auto;">${JSON.stringify(details.suggested_parameters, null, 2)}</pre>
+                    <h4 style="color: var(--text); margin-bottom: 15px;">🔧 Suggested Parameters</h4>
+                    <pre style="background: var(--bg-alt); color: var(--text); padding: 15px; border-radius: 8px; overflow-x: auto;">${JSON.stringify(details.suggested_parameters, null, 2)}</pre>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h4 style="color: #2d3748; margin-bottom: 15px;">📝 Evidence Logs</h4>
+                    <h4 style="color: var(--text); margin-bottom: 15px;">📝 Evidence Logs</h4>
                     <div style="max-height: 200px; overflow-y: auto;">
-                        ${details.evidence_logs.map(log => `<div style="padding: 8px; background: #f1f5f9; margin-bottom: 5px; border-radius: 4px; font-family: monospace; font-size: 0.8rem;">${log}</div>`).join('')}
+                        ${details.evidence_logs.map(log => `<div style="padding: 8px; background: var(--bg-alt); margin-bottom: 5px; border-radius: 4px; font-family: monospace; font-size: 0.8rem;">${log}</div>`).join('')}
                     </div>
                 </div>
             `;
@@ -1219,8 +1537,8 @@
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background: #48bb78;
-                color: white;
+                background: var(--success);
+                color: #ffffff;
                 padding: 15px 20px;
                 border-radius: 8px;
                 box-shadow: 0 4px 16px rgba(0,0,0,0.2);
@@ -1234,6 +1552,32 @@
                 successDiv.style.animation = 'slideOutRight 0.3s ease-out';
                 setTimeout(() => document.body.removeChild(successDiv), 300);
             }, 2000);
+        }
+
+        function showErrorMessage(message) {
+            // Create a temporary error message
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--danger);
+                color: #ffffff;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+                z-index: 3000;
+                animation: slideInRight 0.3s ease-out;
+                max-width: 400px;
+                word-wrap: break-word;
+            `;
+            errorDiv.textContent = message;
+            document.body.appendChild(errorDiv);
+            
+            setTimeout(() => {
+                errorDiv.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => document.body.removeChild(errorDiv), 300);
+            }, 4000);
         }
 
         // Add CSS animations for success message
@@ -1277,11 +1621,11 @@
                 if (result.success) {
                     showSimulationModal(result.simulation);
                 } else {
-                    alert('Error running simulation: ' + result.error);
+                    showErrorMessage('Error running simulation: ' + result.error);
                 }
             } catch (error) {
                 console.error('Simulation error:', error);
-                alert('Error running simulation: ' + error.message);
+                showErrorMessage('Error running simulation: ' + error.message);
             }
         }
 
@@ -1371,6 +1715,53 @@
                 closeApproveModal();
                 closeRejectModal();
                 closeDetailsModal();
+                closeBatchConfirmModal();
+            }
+        });
+
+        // Batch confirmation functions
+        function showBatchConfirmModal(count) {
+            document.getElementById('batch-count').textContent = count;
+            document.getElementById('batch-confirm-modal').classList.add('active');
+        }
+
+        function closeBatchConfirmModal() {
+            document.getElementById('batch-confirm-modal').classList.remove('active');
+        }
+
+        async function confirmBatchApprove() {
+            closeBatchConfirmModal();
+            
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const response = await fetch('/admin/learning/batch_approve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        learning_ids: Array.from(selectedLearnings)
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSuccessMessage(`Batch approval completed! Successful: ${result.summary.successful}, Failed: ${result.summary.failed}`);
+                    location.reload();
+                } else {
+                    showErrorMessage('Error: ' + result.error);
+                }
+            } catch (error) {
+                showErrorMessage('Error with batch approval: ' + error.message);
+            }
+        }
+
+        // Add event listener for batch confirm modal
+        document.getElementById('batch-confirm-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeBatchConfirmModal();
             }
         });
 
@@ -1416,6 +1807,136 @@
         // Initialize
         console.log('🧠 Continuous Learning Dashboard initialized');
         console.log(`📊 Found ${document.querySelectorAll('.learning-item').length} pending learnings`);
+        
+        // Approved Learnings Functions
+        let currentDeleteLearningId = null;
+        
+        function deleteApprovedLearning(learningId) {
+            currentDeleteLearningId = learningId;
+            showDeleteConfirmationModal(learningId);
+        }
+        
+        function showDeleteConfirmationModal(learningId) {
+            const modal = document.getElementById('delete-modal');
+            const learningItem = document.querySelector(`[data-id="${learningId}"]`);
+            
+            if (learningItem) {
+                const algorithm = learningItem.querySelector('.algorithm-badge').textContent.trim();
+                const type = learningItem.querySelector('.learning-type').textContent.trim();
+                const description = learningItem.querySelector('h4').textContent.trim();
+                
+                document.getElementById('delete-learning-id').textContent = learningId;
+                document.getElementById('delete-algorithm').textContent = algorithm;
+                document.getElementById('delete-type').textContent = type;
+                document.getElementById('delete-description').textContent = description;
+                
+                modal.classList.add('active');
+            }
+        }
+        
+        function closeDeleteModal() {
+            const modal = document.getElementById('delete-modal');
+            modal.classList.remove('active');
+            currentDeleteLearningId = null;
+        }
+        
+        async function confirmDeleteLearning() {
+            if (!currentDeleteLearningId) return;
+            
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                const response = await fetch(`/admin/learning/delete/${currentDeleteLearningId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Remove the learning item from the DOM
+                    const learningItem = document.querySelector(`[data-id="${currentDeleteLearningId}"]`);
+                    if (learningItem) {
+                        learningItem.style.animation = 'fadeOut 0.3s ease-out';
+                        setTimeout(() => {
+                            learningItem.remove();
+                            // Check if no more approved learnings
+                            const remainingItems = document.querySelectorAll('#approved-learning-list .learning-item');
+                            if (remainingItems.length === 0) {
+                                const container = document.getElementById('approved-learning-list');
+                                container.innerHTML = `
+                                                                    <div style="text-align: center; padding: 40px; color: var(--text-light);">
+                                    <h3>📭 No approved learnings!</h3>
+                                    <p>All approved learnings have been deleted.</p>
+                                </div>
+                                `;
+                            }
+                        }, 300);
+                    }
+                    
+                    closeDeleteModal();
+                    showSuccessMessage('Learning deleted and previous state restored successfully!');
+                } else {
+                    showErrorMessage('Error deleting learning: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                showErrorMessage('Error deleting learning: ' + error.message);
+            }
+        }
+        
+        function showApprovedLearningDetails(learningId) {
+            // For now, just show a simple alert with the learning ID
+            // In a real implementation, this would fetch detailed information
+            alert(`Learning Details for ID: ${learningId}\n\nThis would show comprehensive details about the approved learning, including:\n- Original parameters\n- Applied changes\n- Performance metrics\n- Impact analysis`);
+        }
+        
+        // Add event listener for delete modal
+        document.getElementById('delete-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteModal();
+            }
+        });
+        
+        // Add fadeOut animation
+        const fadeOutStyle = document.createElement('style');
+        fadeOutStyle.textContent = `
+            @keyframes fadeOut {
+                from { opacity: 1; transform: translateY(0); }
+                to { opacity: 0; transform: translateY(-10px); }
+            }
+        `;
+        document.head.appendChild(fadeOutStyle);
+        
+        // Approved learnings filters
+        document.getElementById('approved-algorithm-filter').addEventListener('change', applyApprovedFilters);
+        document.getElementById('approved-type-filter').addEventListener('change', applyApprovedFilters);
+        
+        function applyApprovedFilters() {
+            const algorithmFilter = document.getElementById('approved-algorithm-filter').value;
+            const typeFilter = document.getElementById('approved-type-filter').value;
+            
+            document.querySelectorAll('#approved-learning-list .learning-item').forEach(item => {
+                const algorithm = item.querySelector('.algorithm-badge').className.split(' ')[1];
+                const type = item.querySelector('.learning-type').textContent.toLowerCase();
+                
+                const algorithmMatch = !algorithmFilter || algorithm === algorithmFilter;
+                const typeMatch = !typeFilter || type.includes(typeFilter);
+                
+                if (algorithmMatch && typeMatch) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
     </script>
 </body>
 </html>

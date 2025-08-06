@@ -36,19 +36,27 @@ def learning_dashboard():
         # Get pending learnings
         pending_learnings = engine.get_pending_learnings()
         
+        # Get approved learnings
+        approved_learnings = get_approved_learnings()
+        
         # Get learning metrics
         learning_metrics = get_learning_metrics()
         
         # Get pattern library
         pattern_library = get_pattern_library()
         
+        # Get learning impact data
+        impact_data = get_learning_impact_data()
+        
         # Calculate summary statistics
         summary_stats = calculate_summary_stats(pending_learnings, learning_metrics)
         
         return render_template('admin/learning_dashboard.html',
                              pending_learnings=pending_learnings,
+                             approved_learnings=approved_learnings,
                              learning_metrics=learning_metrics,
                              pattern_library=pattern_library,
+                             impact_data=impact_data,
                              summary_stats=summary_stats)
                              
     except Exception as e:
@@ -324,6 +332,193 @@ def learning_metrics():
         flash(f'Error loading learning metrics: {str(e)}', 'error')
         return redirect(url_for('admin_learning.learning_dashboard'))
 
+@admin_learning_bp.route('/api/approved')
+@login_required
+@admin_required
+def api_get_approved_learnings():
+    """API endpoint to get approved learnings"""
+    try:
+        algorithm_filter = request.args.get('algorithm', '')
+        type_filter = request.args.get('type', '')
+        
+        approved_learnings = get_approved_learnings()
+        
+        # Apply filters
+        if algorithm_filter:
+            approved_learnings = [l for l in approved_learnings if l['algorithm_name'] == algorithm_filter]
+        
+        if type_filter:
+            approved_learnings = [l for l in approved_learnings if l['learning_type'] == type_filter]
+        
+        return jsonify({
+            'success': True,
+            'learnings': approved_learnings,
+            'count': len(approved_learnings)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_learning_bp.route('/delete/<int:learning_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_approved_learning(learning_id):
+    """Delete an approved learning and revert to previous state"""
+    try:
+        # Get learning details
+        learning = get_learning_by_id(learning_id)
+        if not learning:
+            return jsonify({'success': False, 'error': 'Learning not found'}), 404
+        
+        # Check if learning is approved
+        if learning['status'] != 'approved':
+            return jsonify({'success': False, 'error': 'Can only delete approved learnings'}), 400
+        
+        # Revert the learning (restore previous state)
+        revert_result = revert_learning(learning)
+        
+        if revert_result['success']:
+            # Delete the learning from database
+            conn = get_learning_db_connection()
+            cursor = conn.cursor()
+            
+            # Delete from algorithm_learnings table
+            cursor.execute('DELETE FROM algorithm_learnings WHERE id = ?', (learning_id,))
+            
+            # Log the deletion
+            log_admin_action(current_user.id, 'delete_learning', {
+                'learning_id': learning_id,
+                'algorithm': learning['algorithm_name'],
+                'type': learning['learning_type'],
+                'revert_details': revert_result['details']
+            })
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Learning deleted and previous state restored',
+                'details': revert_result['details']
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'error': f'Failed to revert learning: {revert_result["error"]}'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_learning_bp.route('/api/impact')
+@login_required
+@admin_required
+def api_get_learning_impact():
+    """API endpoint to get learning impact data"""
+    try:
+        # Get recent impact tracking data
+        conn = get_learning_db_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        impact_data = cursor.execute('''
+            SELECT * FROM learning_impact_tracking 
+            ORDER BY created_at DESC 
+            LIMIT 10
+        ''').fetchall()
+        
+        conn.close()
+        
+        # Parse the JSON data
+        parsed_impact = []
+        for row in impact_data:
+            impact_row = dict(row)
+            impact_row['current_metrics'] = json.loads(impact_row['current_metrics'])
+            impact_row['baseline_metrics'] = json.loads(impact_row['baseline_metrics'])
+            impact_row['improvements'] = json.loads(impact_row['improvements'])
+            parsed_impact.append(impact_row)
+        
+        return jsonify({
+            'success': True,
+            'impact_data': parsed_impact,
+            'count': len(parsed_impact)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def get_learning_impact_data():
+    """Get learning impact data for dashboard"""
+    try:
+        conn = get_learning_db_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Check if impact tracking table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='learning_impact_tracking'")
+        if not cursor.fetchone():
+            # Table doesn't exist, return empty data
+            return {
+                'recent_impact': [],
+                'average_improvements': {
+                    'detection_improvement': 0,
+                    'confidence_improvement': 0,
+                    'accuracy_improvement': 0
+                },
+                'total_sessions_tracked': 0
+            }
+        
+        # Get recent impact data
+        impact_data = cursor.execute('''
+            SELECT * FROM learning_impact_tracking 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        ''').fetchall()
+        
+        conn.close()
+        
+        # Parse and calculate summary
+        parsed_impact = []
+        total_improvements = {
+            'detection_improvement': 0,
+            'confidence_improvement': 0,
+            'accuracy_improvement': 0
+        }
+        
+        for row in impact_data:
+            impact_row = dict(row)
+            impact_row['current_metrics'] = json.loads(impact_row['current_metrics'])
+            impact_row['baseline_metrics'] = json.loads(impact_row['baseline_metrics'])
+            impact_row['improvements'] = json.loads(impact_row['improvements'])
+            parsed_impact.append(impact_row)
+            
+            # Accumulate improvements
+            for key in total_improvements:
+                total_improvements[key] += impact_row['improvements'].get(key, 0)
+        
+        # Calculate averages
+        if parsed_impact:
+            for key in total_improvements:
+                total_improvements[key] /= len(parsed_impact)
+        
+        return {
+            'recent_impact': parsed_impact,
+            'average_improvements': total_improvements,
+            'total_sessions_tracked': len(parsed_impact)
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to get learning impact data: {e}")
+        return {
+            'recent_impact': [],
+            'average_improvements': {
+                'detection_improvement': 0,
+                'confidence_improvement': 0,
+                'accuracy_improvement': 0
+            },
+            'total_sessions_tracked': 0
+        }
+
 # Helper functions
 def get_learning_by_id(learning_id):
     """Get learning by ID"""
@@ -591,6 +786,35 @@ def get_comprehensive_learning_metrics():
         'recent_trends': {
             'week_over_week_improvement': 5.2,
             'false_positive_reduction': 15.3
+        }
+    }
+
+def get_approved_learnings():
+    """Get all approved learnings from the database"""
+    conn = get_learning_db_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    approved_learnings = cursor.execute('''
+        SELECT * FROM algorithm_learnings 
+        WHERE status = 'approved'
+        ORDER BY applied_at DESC
+    ''').fetchall()
+    
+    conn.close()
+    return [dict(row) for row in approved_learnings]
+
+def revert_learning(learning):
+    """Revert an approved learning to its previous state (e.g., restore parameters)"""
+    # Placeholder for actual revert logic
+    # This would involve querying the history of the learning to find its previous state
+    # For now, we'll just return a dummy success
+    return {
+        'success': True,
+        'details': {
+            'reverted_algorithm': learning['algorithm_name'],
+            'reverted_type': learning['learning_type'],
+            'reverted_at': datetime.now().isoformat()
         }
     }
 

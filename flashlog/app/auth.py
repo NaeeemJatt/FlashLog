@@ -311,7 +311,6 @@ def login():
                         print(f"[DEBUG] Logged login activity for user {user['username']}.")
                     except Exception as e:
                         print(f"[ERROR] Failed to log login activity for user {user['username']}: {e}")
-                    flash(f'Welcome back, {user["username"]}!', 'success')
                     print(f"[DEBUG] Session right before redirect after login: {dict(session)}")
                     # Redirect based on role
                     if session['role'] == 'admin':

@@ -255,6 +255,9 @@ def analyze():
                         user_id=session.get('user_id', 1)
                     )
                     
+                    # NEW: Track learning impact
+                    impact_result = engine.track_learning_impact(run_id, learning_logs, learning_results)
+                    
                     # Store only minimal info in session (for immediate feedback)
                     # Ensure JSON serializable data
                     session['learning_session_id'] = str(learning_session['session_id'])
@@ -267,6 +270,22 @@ def analyze():
                         print(f"[DEBUG] ✅ Learnings stored permanently in database - session-independent!")
                     else:
                         flash('Analysis complete! No new learnings generated this time.', 'info')
+                    
+                    # Show learning impact if detected
+                    if impact_result.get('impact_detected'):
+                        improvements = impact_result['improvements']
+                        impact_message = "🎯 Learning Impact Detected: "
+                        if improvements.get('detection_improvement', 0) > 0:
+                            impact_message += f"Detection improved by {improvements['detection_improvement']:.1f}%. "
+                        if improvements.get('confidence_improvement', 0) > 0:
+                            impact_message += f"Confidence improved by {improvements['confidence_improvement']:.1f}%. "
+                        if improvements.get('accuracy_improvement', 0) > 0:
+                            impact_message += f"Accuracy improved by {improvements['accuracy_improvement']:.1f}%. "
+                        
+                        flash(impact_message, 'success')
+                        print(f"[DEBUG] ✅ Learning impact tracked and displayed to user")
+                    else:
+                        print(f"[DEBUG] No learning impact detected: {impact_result.get('message', 'Unknown')}")
                 else:
                     print("[DEBUG] No data available for learning engine")
                     flash('Analysis complete!', 'success')

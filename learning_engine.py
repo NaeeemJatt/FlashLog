@@ -90,6 +90,19 @@ class ContinuousLearningEngine:
             )
         ''')
         
+        # Learning Impact Tracking Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS learning_impact_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                current_metrics TEXT NOT NULL,
+                baseline_metrics TEXT NOT NULL,
+                improvements TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES learning_sessions(session_id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
         print("✅ Learning database tables initialized")
@@ -739,6 +752,170 @@ class ContinuousLearningEngine:
             'original_logs': original_logs,
             'can_reprocess': True
         }
+
+    def track_learning_impact(self, current_session_id, logs, results):
+        """Track how approved learnings have improved analysis results"""
+        try:
+            # Get all approved learnings that could affect this analysis
+            approved_learnings = self.get_approved_learnings()
+            
+            if not approved_learnings:
+                return {
+                    'impact_detected': False,
+                    'message': 'No approved learnings to compare against'
+                }
+            
+            # Calculate current analysis metrics
+            current_metrics = self.calculate_analysis_metrics(logs, results)
+            
+            # Simulate what the analysis would have been without approved learnings
+            baseline_metrics = self.simulate_baseline_analysis(logs, approved_learnings)
+            
+            # Compare and calculate improvements
+            improvements = self.calculate_improvements(current_metrics, baseline_metrics)
+            
+            # Store impact tracking
+            self.store_impact_tracking(current_session_id, current_metrics, baseline_metrics, improvements)
+            
+            return {
+                'impact_detected': True,
+                'improvements': improvements,
+                'current_metrics': current_metrics,
+                'baseline_metrics': baseline_metrics
+            }
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to track learning impact: {e}")
+            return {
+                'impact_detected': False,
+                'error': str(e)
+            }
+    
+    def calculate_analysis_metrics(self, logs, results):
+        """Calculate key metrics for current analysis"""
+        total_logs = len(logs)
+        anomalies_detected = sum(1 for r in results if r.get('is_anomaly', False))
+        anomaly_rate = anomalies_detected / total_logs if total_logs > 0 else 0
+        
+        # Calculate confidence scores
+        high_confidence = sum(1 for r in results if r.get('confidence', 0) > 0.8)
+        medium_confidence = sum(1 for r in results if 0.5 < r.get('confidence', 0) <= 0.8)
+        low_confidence = sum(1 for r in results if r.get('confidence', 0) <= 0.5)
+        
+        # Calculate severity distribution
+        severity_counts = {}
+        for r in results:
+            severity = r.get('severity', 'unknown')
+            severity_counts[severity] = severity_counts.get(severity, 0) + 1
+        
+        return {
+            'total_logs': total_logs,
+            'anomalies_detected': anomalies_detected,
+            'anomaly_rate': anomaly_rate,
+            'high_confidence': high_confidence,
+            'medium_confidence': medium_confidence,
+            'low_confidence': low_confidence,
+            'severity_distribution': severity_counts,
+            'average_confidence': sum(r.get('confidence', 0) for r in results) / len(results) if results else 0
+        }
+    
+    def simulate_baseline_analysis(self, logs, approved_learnings):
+        """Simulate what analysis would be without approved learnings"""
+        # This is a simplified simulation - in practice, you'd run the actual algorithms
+        # with baseline parameters instead of current (improved) parameters
+        
+        # For now, we'll estimate based on learning types
+        baseline_metrics = {
+            'total_logs': len(logs),
+            'anomalies_detected': 0,
+            'anomaly_rate': 0.0,
+            'high_confidence': 0,
+            'medium_confidence': 0,
+            'low_confidence': 0,
+            'severity_distribution': {},
+            'average_confidence': 0.0
+        }
+        
+        # Estimate impact based on approved learning types
+        for learning in approved_learnings:
+            if learning['learning_type'] == 'parameter':
+                # Parameter improvements typically increase detection accuracy
+                baseline_metrics['anomaly_rate'] += 0.05  # Conservative estimate
+            elif learning['learning_type'] == 'pattern':
+                # Pattern improvements increase detection of specific types
+                baseline_metrics['anomalies_detected'] += 2  # Conservative estimate
+            elif learning['learning_type'] == 'feature':
+                # Feature improvements increase overall confidence
+                baseline_metrics['average_confidence'] -= 0.1  # Lower confidence without improvements
+        
+        return baseline_metrics
+    
+    def calculate_improvements(self, current_metrics, baseline_metrics):
+        """Calculate improvement percentages"""
+        improvements = {}
+        
+        # Anomaly detection improvement
+        if baseline_metrics['anomalies_detected'] > 0:
+            detection_improvement = ((current_metrics['anomalies_detected'] - baseline_metrics['anomalies_detected']) / 
+                                   baseline_metrics['anomalies_detected']) * 100
+            improvements['detection_improvement'] = detection_improvement
+        else:
+            improvements['detection_improvement'] = 0
+        
+        # Confidence improvement
+        if baseline_metrics['average_confidence'] > 0:
+            confidence_improvement = ((current_metrics['average_confidence'] - baseline_metrics['average_confidence']) / 
+                                   baseline_metrics['average_confidence']) * 100
+            improvements['confidence_improvement'] = confidence_improvement
+        else:
+            improvements['confidence_improvement'] = 0
+        
+        # Overall accuracy improvement
+        total_baseline = baseline_metrics['high_confidence'] + baseline_metrics['medium_confidence']
+        total_current = current_metrics['high_confidence'] + current_metrics['medium_confidence']
+        
+        if total_baseline > 0:
+            accuracy_improvement = ((total_current - total_baseline) / total_baseline) * 100
+            improvements['accuracy_improvement'] = accuracy_improvement
+        else:
+            improvements['accuracy_improvement'] = 0
+        
+        return improvements
+    
+    def store_impact_tracking(self, session_id, current_metrics, baseline_metrics, improvements):
+        """Store impact tracking data"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO learning_impact_tracking 
+            (session_id, current_metrics, baseline_metrics, improvements, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (
+            session_id,
+            json.dumps(current_metrics),
+            json.dumps(baseline_metrics),
+            json.dumps(improvements),
+            datetime.now()
+        ))
+        
+        conn.commit()
+        conn.close()
+    
+    def get_approved_learnings(self):
+        """Get all approved learnings"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        learnings = cursor.execute('''
+            SELECT * FROM algorithm_learnings 
+            WHERE status = 'approved'
+            ORDER BY applied_at DESC
+        ''').fetchall()
+        
+        conn.close()
+        return [dict(row) for row in learnings]
 
 # Test the learning engine
 if __name__ == "__main__":

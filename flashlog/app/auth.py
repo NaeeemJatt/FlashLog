@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
+from flask_login import UserMixin, login_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
@@ -11,6 +12,29 @@ from wtforms.validators import DataRequired, Length, EqualTo, Regexp
 from flask_limiter.util import get_remote_address  # If needed
 
 auth = Blueprint('auth', __name__)
+
+class User(UserMixin):
+    """User class for Flask-Login"""
+    def __init__(self, id, username, email, role='user'):
+        self.id = str(id)  # Flask-Login expects string ID
+        self.username = username
+        self.email = email
+        self.role = role
+        
+    def get_id(self):
+        return self.id
+        
+    @property
+    def is_active(self):
+        return True
+        
+    @property
+    def is_authenticated(self):
+        return True
+        
+    @property
+    def is_anonymous(self):
+        return False
 
 def init_db():
     """Initialize the database with users table"""
@@ -88,6 +112,32 @@ def get_db_connection():
     conn = sqlite3.connect('flashlog/users.db')
     conn.row_factory = sqlite3.Row
     return conn
+
+def expire_all_user_sessions(user_id=None):
+    """Expire all active sessions for a user or all users"""
+    try:
+        conn = get_db_connection()
+        if user_id:
+            # Expire sessions for specific user
+            conn.execute(
+                'UPDATE user_sessions SET expires_at = CURRENT_TIMESTAMP WHERE user_id = ? AND expires_at > CURRENT_TIMESTAMP',
+                (user_id,)
+            )
+            print(f"[DEBUG] Expired all sessions for user_id: {user_id}")
+        else:
+            # If no user_id provided, check current session for user_id
+            current_user_id = session.get('user_id')
+            if current_user_id:
+                conn.execute(
+                    'UPDATE user_sessions SET expires_at = CURRENT_TIMESTAMP WHERE user_id = ? AND expires_at > CURRENT_TIMESTAMP',
+                    (current_user_id,)
+                )
+                print(f"[DEBUG] Expired all sessions for current user_id: {current_user_id}")
+        
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[ERROR] Failed to expire user sessions: {e}")
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
@@ -220,12 +270,25 @@ def login():
                         print(f"[DEBUG] Account for user {username} is locked.")
                         flash('Account is locked. Please contact support.', 'error')
                         return redirect(url_for('auth.login'))
+                    
+                    # Create Flask-Login User object
+                    user_obj = User(
+                        id=user['id'],
+                        username=user['username'],
+                        email=user['email'],
+                        role=user.get('role', 'user')
+                    )
+                    
+                    # Log in the user with Flask-Login
+                    login_user(user_obj, remember=remember)
+                    
+                    # Also store in session for backward compatibility
                     session['user_id'] = user['id']
                     session['username'] = user['username']
                     session['role'] = user.get('role', 'user')  # Default to 'user' if role not set
                     session['session_token'] = str(uuid.uuid4())  # Generate a unique session token
                     session.permanent = remember  # Make session permanent if 'remember' is checked
-                    print(f"[DEBUG] Session created for user {username} with token {session['session_token'][:8]}... and permanent={remember}")
+                    print(f"[DEBUG] User {username} logged in with Flask-Login. Session token: {session['session_token'][:8]}... and permanent={remember}")
                     # Insert session into user_sessions table
                     from datetime import datetime, timedelta
                     expires_at = datetime.now() + timedelta(hours=1)
@@ -295,50 +358,37 @@ def login():
 @auth.route('/logout')
 def logout():
     """User logout with secure session termination"""
+    # Log out with Flask-Login
+    logout_user()
+    
+    # Clean up temporary files before session expiry
     anomaly_types_path = session.get('anomaly_types_path')
     if anomaly_types_path and os.path.exists(anomaly_types_path):
         os.remove(anomaly_types_path)
     session.pop('anomaly_types_path', None)
-    session.clear()
-    flash('You have been logged out.', 'success')
-    return redirect(url_for('auth.auth_page'))
+    
+    # Redirect to auth page with logout action - this will handle session expiry
+    return redirect(url_for('auth.auth_page', action='logout'))
 
 @auth.route('/auth')
-def auth_page():
+@auth.route('/auth/<action>')
+def auth_page(action=None):
     """Combined authentication page"""
-    # If user is already logged in, redirect to main page
-    if 'user_id' in session:
-        return redirect(url_for('dashboard.index'))
+    # Handle logout action specifically
+    if action == 'logout':
+        if 'user_id' in session:
+            user_id = session.get('user_id')
+            username = session.get('username', 'Unknown')
+            print(f"[DEBUG] Logout action for user {username} (ID: {user_id})")
+            expire_all_user_sessions(user_id)
+            session.clear()
+            flash('You have been logged out successfully.', 'success')
+        else:
+            flash('You have been logged out.', 'success')
     
     return render_template('auth/auth.html')
 
-def login_required(f):
-    """Decorator to require login for routes"""
-    from functools import wraps
-    
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Please log in to access this page!', 'error')
-            return redirect(url_for('auth.auth_page'))
-        
-        # Verify session is still valid
-        if 'session_token' in session:
-            conn = get_db_connection()
-            valid_session = conn.execute(
-                'SELECT * FROM user_sessions WHERE session_token = ? AND expires_at > CURRENT_TIMESTAMP',
-                (session['session_token'],)
-            ).fetchone()
-            conn.close()
-            
-            if not valid_session:
-                session.clear()
-                flash('Your session has expired. Please log in again!', 'error')
-                return redirect(url_for('auth.auth_page'))
-        
-        return f(*args, **kwargs)
-    
-    return decorated_function
+# Custom login_required decorator removed - using Flask-Login's built-in @login_required
 
 def admin_required(f):
     """Decorator to require admin role for routes"""

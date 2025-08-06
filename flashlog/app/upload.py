@@ -9,22 +9,58 @@ import uuid
 upload_bp = Blueprint('upload', __name__)
 
 @upload_bp.route('/analyzed-logs')
-def analyzed_logs():
+@upload_bp.route('/analyzed-logs/<run_id>')
+def analyzed_logs(run_id=None):
     if 'user_id' not in session:
         print("[DEBUG] No user_id in session - redirecting to auth")
         flash('Please log in to view analysis results.', 'error')
         return redirect(url_for('auth.auth_page'))
+    
+    # Debug session state at the start of the route
+    print(f"[DEBUG] analyzed_logs route - Session keys: {list(session.keys())}")
+    print(f"[DEBUG] analyzed_logs route - Session ID: {session.get('session_token', 'NO_TOKEN')}")
+    print(f"[DEBUG] analyzed_logs route - User ID: {session.get('user_id', 'NO_USER')}")
+    print(f"[DEBUG] analyzed_logs route - Request endpoint: {request.endpoint}")
+    
+    # Check if session token is valid (similar to routes.py logic)
+    session_token = session.get('session_token')
+    if session_token:
+        conn = get_db_connection()
+        valid_session = conn.execute(
+            'SELECT * FROM user_sessions WHERE session_token = ? AND expires_at > CURRENT_TIMESTAMP',
+            (session_token,)
+        ).fetchone()
+        conn.close()
+        print(f"[DEBUG] analyzed_logs route - Session token validation: {'VALID' if valid_session else 'INVALID'}")
+        
+        if not valid_session:
+            print("[DEBUG] analyzed_logs route - Session token expired, clearing session")
+            session.clear()
+            flash('Session expired. Please log in again.', 'error')
+            return redirect(url_for('auth.auth_page'))
+    else:
+        print("[DEBUG] analyzed_logs route - No session token found")
+    
+    # Get pagination parameters
     page = request.args.get('page', 1, type=int)
-    per_page = 10
-    analysis_summary = session.get('analysis_summary', {})
-    # Remove debug prints
-    # print(f"[DEBUG] Session keys on load: {list(session.keys())}")
-    run_id = session.get('current_run')
-    # print(f"[DEBUG] run_id in session: {run_id}")
+    per_page = 10  # Show 10 results per page
+    
+    # Try to get run_id from URL parameter first, then fallback to session
+    if not run_id:
+        run_id = request.args.get('run_id')
+    if not run_id:
+        run_id = session.get('run_id')
+    if not run_id:
+        run_id = session.get('backup_run_id')
+    
+    print(f"[DEBUG] analyzed_logs route - Final run_id: {run_id}")
+    print(f"[DEBUG] analyzed_logs route - run_id source: {'URL parameter' if request.args.get('run_id') else 'session'}")
+    
     if not run_id:
         print("[DEBUG] No run_id in session - redirecting to dashboard")
         flash('No analysis run found. Please analyze a log file first.')
         return redirect('/user/dashboard')
+    
     try:
         conn = get_db_connection()
         row = conn.execute('SELECT results_json FROM analysis_runs WHERE run_id = ?', (run_id,)).fetchone()
@@ -34,35 +70,67 @@ def analyzed_logs():
             flash('Analysis results expired or not found.')
             return redirect('/user/dashboard')
         analysis_results = json.loads(row['results_json'])
-        # Remove debug prints
-        # print(f"[DEBUG] Loaded results from DB, length: {len(analysis_results)}")
+        
+        # Get analysis summary from session or create a basic one
+        analysis_summary = session.get('analysis_summary', {})
+        if not analysis_summary:
+            # Create basic summary from results if session data is missing
+            total_logs = len(analysis_results)
+            anomaly_count = sum(1 for r in analysis_results if r.get('is_anomaly', False))
+            analysis_summary = {
+                'total_logs': total_logs,
+                'total_anomalies': anomaly_count,
+                'success_rate': round((total_logs - anomaly_count) / total_logs * 100, 2) if total_logs > 0 else 0,
+                'index_name': 'flashlog-analysis',
+                'parser': 'drain',
+                'model': 'isolation_forest',
+                'created_at': 'Unknown'
+            }
+            print(f"[DEBUG] Created fallback analysis_summary: {analysis_summary}")
+        else:
+            print(f"[DEBUG] Using session analysis_summary: {analysis_summary}")
+            
     except Exception as e:
         print(f"[DEBUG] Error loading from DB: {str(e)}")
         flash('Error loading analysis results from storage.', 'error')
         return redirect('/user/dashboard')
+    
     if not analysis_results or not isinstance(analysis_results, list):
         print("[DEBUG] Loaded results invalid - redirecting")
         flash('Invalid analysis results.')
         return redirect('/user/dashboard')
-    results = analysis_results
-    total_results = len(results)
-    total_pages = (total_results + per_page - 1) // per_page
+    
+    # Calculate pagination
+    total_results = len(analysis_results)
+    total_pages = (total_results + per_page - 1) // per_page  # Ceiling division
+    
+    # Calculate start and end indices for current page
     start_idx = (page - 1) * per_page
     end_idx = start_idx + per_page
-    paginated_results = results[start_idx:end_idx]
+    
+    # Get results for current page
+    results = analysis_results[start_idx:end_idx]
+    
+    # Prepare pagination info
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total_results': total_results,
+        'total_pages': total_pages,
+        'total_count': total_results,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_num': page - 1 if page > 1 else None,
+        'next_num': page + 1 if page < total_pages else None
+    }
+    
     response = make_response(render_template('analyzed_logs.html',
-                         results=paginated_results,
+                         results=results,
                          csv_path=None,
                          kibana_url=session.get('kibana_url'),
                          analysis_summary=analysis_summary,
-                         pagination={
-                             'page': page,
-                             'per_page': per_page,
-                             'total_pages': total_pages,
-                             'total_results': total_results,
-                             'start_idx': start_idx + 1,
-                             'end_idx': min(end_idx, total_results)
-                         }))
+                         pagination=pagination,
+                         run_id=run_id))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
@@ -130,7 +198,7 @@ def upload_file():
     conn.close()
 
     # Update session
-    session['current_run'] = run_id
+    session['run_id'] = run_id
     session['analysis_summary'] = {
         'created_at': datetime.now().isoformat(),
         'index_name': index_name,

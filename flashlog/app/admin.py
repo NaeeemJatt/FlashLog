@@ -7,7 +7,7 @@ import re
 
 admin = Blueprint('admin', __name__)
 
-@admin.route('/admin/dashboard')
+@admin.route('/dashboard')
 @login_required
 def admin_dashboard():
     user_role = session.get('role', 'user')

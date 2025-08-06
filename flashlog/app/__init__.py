@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_login import LoginManager
 import secrets
 import os
 from datetime import timedelta
@@ -10,10 +11,7 @@ def create_app():
     app = Flask(__name__)
     app.config['UPLOAD_FOLDER'] = 'uploads'
     
-    # Force session cookie settings for local development
-    app.config['SESSION_COOKIE_SECURE'] = False  # Always False for local dev
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    # Session cookie settings will be configured below
     
     # Set the template folder explicitly to ensure correct path
     app.template_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
@@ -26,14 +24,52 @@ def create_app():
     is_production = env == 'production'
     
     # Configure session settings
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)  # 1 hour
-    app.config['SESSION_COOKIE_SECURE'] = is_production  # Secure in production
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)  # Extended to 2 hours
+    app.config['SESSION_COOKIE_SECURE'] = False  # Always False for local development
     app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Strict' if is_production else 'Lax'  # Stricter in production
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # More permissive for local dev
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+    app.config['SESSION_TYPE'] = 'filesystem'  # Use filesystem storage instead of cookies
+    print(f"[DEBUG] Session configuration: PERMANENT_SESSION_LIFETIME={app.config['PERMANENT_SESSION_LIFETIME']}, REFRESH_EACH_REQUEST={app.config['SESSION_REFRESH_EACH_REQUEST']}")
     
     # Initialize CSRF protection
     csrf = CSRFProtect(app)
+    
+    # Initialize Flask-Login
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.auth_page'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'info'
+    
+    # Add custom Jinja2 filters
+    @app.template_filter('from_json')
+    def from_json_filter(json_str):
+        """Parse JSON string to Python object"""
+        import json
+        try:
+            return json.loads(json_str) if json_str else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    
+    # User loader callback for Flask-Login
+    @login_manager.user_loader
+    def load_user(user_id):
+        from .auth import get_db_connection, User
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        user_data = cursor.fetchone()
+        conn.close()
+        
+        if user_data:
+            return User(
+                id=user_data['id'],
+                username=user_data['username'],
+                email=user_data['email'],
+                role=user_data['role']
+            )
+        return None
     
     # Initialize rate limiting with Redis-like storage (or use memory for development)
     try:
@@ -77,16 +113,18 @@ def create_app():
     # Register blueprints
     from .routes import main
     from .auth import auth
-    from .admin import admin
+    from .admin import admin  # Import admin blueprint from admin.py
     from .dashboard import dashboard_bp
     from .download import download_bp
     from .history import history_bp
     from .kibana import kibana_bp
     from .upload import upload_bp
+    from .admin_learning.learning_routes import admin_learning_bp
     
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
-    app.register_blueprint(admin, url_prefix='/admin')
+    app.register_blueprint(admin, url_prefix='/admin')  # Use admin blueprint
+    app.register_blueprint(admin_learning_bp)  # Admin learning dashboard
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(download_bp)
     app.register_blueprint(history_bp)

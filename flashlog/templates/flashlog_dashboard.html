@@ -58,8 +58,6 @@
       background:var(--primary);
       color:#fff;
       border:none;
-      padding:0.5rem 0.9rem;
-      font-size:0.9rem;
       border-radius:6px;
       cursor:pointer;
     }
@@ -82,6 +80,28 @@
       box-shadow:0 2px 8px rgba(0,0,0,0.05);
       padding:1rem;
       text-align:center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-color: var(--primary);
+    }
+    
+    .stat-card.active {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, var(--primary), rgba(59, 130, 246, 0.1));
+    }
+    
+    .stat-card.active .stat-label {
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .stat-card.active .stat-value {
+      color: white;
     }
     .stat-label{
       font-size:0.85rem;
@@ -108,6 +128,24 @@
       border-radius:8px;
       box-shadow:0 2px 8px rgba(0,0,0,0.05);
       padding:0.9rem 1.1rem;
+      transition: all 0.2s ease;
+    }
+    
+    .card.chart-card {
+      cursor: pointer;
+    }
+    
+    .card.chart-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border: 1px solid var(--primary);
+    }
+    
+    .card.chart-active {
+      border: 2px solid var(--primary);
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), var(--bg-card));
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
     }
     .card h2{
       margin:0 0 0.6rem;
@@ -213,25 +251,179 @@
       background:var(--bg-alt);
     }
 
-    .pagination{
-      display:flex;
-      justify-content:flex-end;
-      gap:0.4rem;
-      padding:0.7rem 1.2rem;
-      border-top:1px solid var(--border);
+    /* Table Info Styling */
+    .table-info {
+      padding: 0.7rem 1.2rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg-card);
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
     }
-    .pagination button{
-      border:1px solid var(--border);
-      background:var(--bg-card);
-      padding:0.3rem 0.6rem;
-      border-radius:4px;
-      font-size:0.8rem;
-      cursor:pointer;
+    
+    /* Improved Table Styling */
+    .logs-table {
+      table-layout: fixed;
+      width: 100%;
     }
-    .pagination button.active{
-      border-color:var(--primary);
-      color:var(--primary);
-      font-weight:600;
+    
+    /* Column widths for better alignment */
+    .logs-table th:nth-child(1), .logs-table td.timestamp-col { width: 12%; }
+    .logs-table th:nth-child(2), .logs-table td.log-text-col { 
+      width: 35%; 
+      word-wrap: break-word; 
+      word-break: break-all; 
+      overflow-wrap: break-word;
+      max-width: 0;
+      white-space: normal;
+    }
+    .logs-table th:nth-child(3), .logs-table td.anomaly-col { width: 10%; }
+    .logs-table th:nth-child(4), .logs-table td.type-col { 
+      width: 12%; 
+      word-wrap: break-word; 
+      overflow-wrap: break-word;
+    }
+    .logs-table th:nth-child(5), .logs-table td.severity-col { width: 10%; }
+    .logs-table th:nth-child(6), .logs-table td.reason-col { 
+      width: 12%; 
+      word-wrap: break-word; 
+      overflow-wrap: break-word;
+    }
+    .logs-table th:nth-child(7), .logs-table td.mitigation-col { 
+      width: 9%; 
+      word-wrap: break-word; 
+      overflow-wrap: break-word;
+    }
+    
+    /* Status badges */
+    .status-badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-align: center;
+      display: inline-block;
+      min-width: 60px;
+    }
+    
+    .status-anomaly {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .status-normal {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    /* Severity badges */
+    .severity-badge {
+      padding: 0.2rem 0.5rem;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      text-align: center;
+      display: inline-block;
+      min-width: 50px;
+    }
+    
+    .severity-critical {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .severity-high {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    
+    .severity-medium {
+      background: #dbeafe;
+      color: #2563eb;
+    }
+    
+    .severity-low {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    
+    /* Row highlighting */
+    .anomaly-row {
+      background: rgba(254, 226, 226, 0.3);
+    }
+    
+    .normal-row {
+      background: transparent;
+    }
+    
+    /* Better table toolbar alignment */
+    .table-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-card);
+      min-height: 60px;
+    }
+    
+    .table-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex: 1;
+    }
+    
+    .table-bar h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    .table-tools {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .table-tools input {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background: var(--bg);
+      color: var(--text);
+      min-width: 200px;
+      height: 36px;
+      box-sizing: border-box;
+    }
+    
+    .table-tools input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+    
+    /* Ensure buttons have consistent height */
+    .btn {
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      font-size: 0.85rem;
+      padding: 0.5rem 0.9rem;
+      transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .btn.outline:hover {
+      background: var(--primary);
+      color: white;
     }
 
     
@@ -257,8 +449,8 @@
 </style>
 </head>
 
-<body>
-  <nav class="w-full z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg shadow-gray-900/10">
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen pt-16">
+  <nav class="fixed top-0 left-0 w-full z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg shadow-gray-900/10">
     <div class="max-w-7xl mx-auto flex items-center justify-between h-16 px-6">
       <!-- Left: Title -->
       <div class="flex items-center gap-3">
@@ -268,6 +460,14 @@
       </div>
       <!-- Right: User info and actions -->
       <div class="flex items-center gap-4">
+        <!-- User Dashboard Button -->
+        <a href="{{ url_for('main.user_dashboard') }}" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white text-sm font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path>
+          </svg>
+          User Dashboard
+        </a>
         <div class="relative group">
           <div class="flex items-center gap-2 cursor-pointer select-none">
             <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
@@ -339,17 +539,17 @@
   </section>
 
   <section class="charts-grid">
-    <div class="card small">
+    <div class="card small chart-card" title="Click to filter by Normal/Anomaly">
       <h2>Anomaly Count</h2>
       <canvas id="anomalyChart"></canvas>
     </div>
 
-    <div class="card small">
+    <div class="card small chart-card" title="Click to filter by Severity Level">
       <h2>Vulnerability Count</h2>
       <canvas id="vulnChart"></canvas>
     </div>
 
-    <div class="card large">
+    <div class="card large chart-card" title="Click to filter by Anomaly Type">
       <h2>Anomaly Type</h2>
       <div class="large-chart-wrap">
         <canvas id="anomalyTypeChart"></canvas>
@@ -359,8 +559,10 @@
 
   <section class="card table-card">
     <div class="table-bar">
+      <div class="table-bar-left">
       <h2>Logs</h2>
-      <div id="filterIndicator" style="margin-left: 1rem; color: var(--primary); font-weight: 500;"></div>
+        <div id="filterIndicator" style="color: var(--primary); font-weight: 500; font-size: 0.9rem;"></div>
+      </div>
       <div class="table-tools">
         <input type="text" id="searchInput" placeholder="Search log text" />
         <button class="btn outline" id="exportCsv">Export CSV</button>
@@ -382,7 +584,6 @@
         <tbody id="logsTableBody"></tbody>
       </table>
     </div>
-    <div class="pagination" id="pager"></div>
   </section>
 
   
@@ -404,16 +605,22 @@
     }
 
     function loadData(){
-      fetch('/api/dashboard-data')
+      // Get run_id from template variable
+      const runId = '{{ run_id }}';
+      console.log('[DEBUG] loadData: Using run_id =', runId);
+      
+      fetch(`/api/dashboard-data?run_id=${runId}`)
         .then(r => r.json())
         .then(drawDashboard)
         .catch(err => console.error('Failed to load data', err));
     }
 
     function drawDashboard(data){
+      console.log('[DEBUG] drawDashboard called with data:', data);
       const analysis = data.analysisSummary || {};
       const anomalyTypes = data.anomalyTypes || [];
       const severityCounts = data.severityCounts || {};
+      console.log('[DEBUG] severityCounts from data:', severityCounts);
       allLogs = data.logs || [];
       filteredLogs = allLogs.slice();
 
@@ -453,19 +660,52 @@
     }
 
     function renderVulnBar(severityCounts){
+      console.log('[DEBUG] renderVulnBar called with:', severityCounts);
+      console.log('[DEBUG] Critical count:', severityCounts.Critical || 0);
+      console.log('[DEBUG] High count:', severityCounts.High || 0);
+      console.log('[DEBUG] Medium count:', severityCounts.Medium || 0);
+      console.log('[DEBUG] Low count:', severityCounts.Low || 0);
+      
       const ctx = document.getElementById('vulnChart').getContext('2d');
-      return new Chart(ctx,{
+      
+      // Destroy existing chart if it exists to prevent conflicts
+      if (window.vulnChartInstance) {
+        window.vulnChartInstance.destroy();
+      }
+      
+      const chartData = [
+        severityCounts.Critical || 0,
+        severityCounts.High || 0,
+        severityCounts.Medium || 0,
+        severityCounts.Low || 0
+      ];
+      console.log('[DEBUG] Chart data array:', chartData);
+      
+      // Check if any vulnerability data exists
+      const totalVulns = chartData.reduce((sum, count) => sum + count, 0);
+      console.log('[DEBUG] Total vulnerabilities across all severities:', totalVulns);
+      
+      if (chartData[0] > 0) {
+        console.log('[DEBUG] Critical vulnerabilities found:', chartData[0]);
+      } else {
+        console.log('[DEBUG] No Critical vulnerabilities found or Critical count is 0');
+      }
+      
+      if (totalVulns === 0) {
+        console.log('[DEBUG] No vulnerability data found - all severity counts are 0');
+        console.log('[DEBUG] Raw severityCounts object:', JSON.stringify(severityCounts));
+      } else {
+        console.log('[DEBUG] Creating chart with vulnerability data - total vulns:', totalVulns);
+      }
+      
+      // Create and store the chart instance
+      window.vulnChartInstance = new Chart(ctx,{
         type:'bar',
         data:{
           labels:['Critical','High','Medium','Low'],
           datasets:[{
             label:'Count',
-            data:[
-              severityCounts.Critical || 0,
-              severityCounts.High || 0,
-              severityCounts.Medium || 0,
-              severityCounts.Low || 0
-            ],
+            data:chartData,
             backgroundColor:['#ef4444','#f97316','#eab308','#38bdf8']
           }]
         },
@@ -475,6 +715,8 @@
           scales:{y:{beginAtZero:true}}
         }
       });
+      
+      return window.vulnChartInstance;
     }
 
     function renderDonut(types){
@@ -528,11 +770,11 @@
     function renderTable(){
       const tbody=document.getElementById('logsTableBody');
       tbody.innerHTML='';
-      const start=(currentPage-1)*PAGE_SIZE;
-      const end=start+PAGE_SIZE;
-      const pageRows=filteredLogs.slice(start,end);
+      
+      // Show all logs without pagination
+      const logsToShow = filteredLogs.length > 0 ? filteredLogs : allLogs;
 
-      for(const row of pageRows){
+      for(const row of logsToShow){
         const timestamp = row.timestamp || '-';
         const log = row.log || row.logline || '-';
         const anomaly = typeof row.anomaly !== 'undefined' ? row.anomaly : (typeof row.is_anomaly !== 'undefined' ? (row.is_anomaly ? 'Anomaly' : 'Normal') : '-');
@@ -540,38 +782,55 @@
         const severity = row.severity || '-';
         const anomalyReason = row.anomaly_reason || '-';
         const mitigation = row.mitigation || '-';
+        
         const tr=document.createElement('tr');
+        const isAnomaly = row.is_anomaly || (row.anomaly && row.anomaly.toLowerCase() === 'anomaly');
+        tr.className = isAnomaly ? 'anomaly-row' : 'normal-row';
+        
         tr.innerHTML=`
-          <td>${timestamp}</td>
-          <td title="${escapeHtml(log)}">${truncate(log,90)}</td>
-          <td>${anomaly}</td>
-          <td>${anomalyType}</td>
-          <td>${severity}</td>
-          <td>${anomalyReason}</td>
-          <td>${mitigation}</td>
+          <td class="timestamp-col">${escapeHtml(timestamp)}</td>
+          <td class="log-text-col" title="${escapeHtml(log)}">${escapeHtml(truncate(log,120))}</td>
+          <td class="anomaly-col">
+            <span class="status-badge ${isAnomaly ? 'status-anomaly' : 'status-normal'}">
+              ${anomaly}
+            </span>
+          </td>
+          <td class="type-col">${escapeHtml(anomalyType)}</td>
+          <td class="severity-col">
+            <span class="severity-badge severity-${(severity || '').toLowerCase()}">${escapeHtml(severity)}</span>
+          </td>
+          <td class="reason-col">${escapeHtml(anomalyReason)}</td>
+          <td class="mitigation-col">${escapeHtml(mitigation)}</td>
         `;
         tbody.appendChild(tr);
       }
-      buildPager();
+      
+      // Update table info
+      updateTableInfo(logsToShow.length, allLogs.length);
     }
 
-    function buildPager(){
-      const pager=document.getElementById('pager');
-      pager.innerHTML='';
-      const pages=Math.ceil(filteredLogs.length / PAGE_SIZE);
-      for(let i=1;i<=pages;i++){
-        const btn=document.createElement('button');
-        btn.textContent=i;
-        btn.classList.toggle('active', i===currentPage);
-        btn.onclick=()=>{currentPage=i; renderTable();};
-        pager.appendChild(btn);
+    function updateTableInfo(showing, total){
+      // Add or update table info instead of pagination
+      let tableInfo = document.getElementById('tableInfo');
+      if (!tableInfo) {
+        tableInfo = document.createElement('div');
+        tableInfo.id = 'tableInfo';
+        tableInfo.className = 'table-info';
+        const tableWrap = document.querySelector('.table-wrap');
+        tableWrap.parentNode.insertBefore(tableInfo, tableWrap.nextSibling);
       }
+      
+      const filterText = document.getElementById('filterIndicator')?.textContent || '';
+      const infoText = filterText ? 
+        `${filterText} - Showing ${showing} of ${total} logs` : 
+        `Showing all ${showing} logs`;
+      
+      tableInfo.innerHTML = `<span class="table-count">${infoText}</span>`;
     }
 
     function onSearch(e){
       const q=e.target.value.toLowerCase();
-      filteredLogs=allLogs.filter(r => (r.log || '').toLowerCase().includes(q));
-      currentPage=1;
+      filteredLogs=allLogs.filter(r => (r.log || r.logline || '').toLowerCase().includes(q));
       renderTable();
     }
 
@@ -607,7 +866,6 @@
         const anomalyType = (r.anomaly_type || r.type || r.anomaly || '').toString().toLowerCase();
         return anomalyType === (type || '').toString().toLowerCase();
       });
-      currentPage = 1;
       setFilterIndicator(type ? `Showing: Anomaly Type: ${type}` : '');
       renderTable();
     }
@@ -616,7 +874,6 @@
         const severity = (r.severity || '').toString().toLowerCase();
         return severity === (sev || '').toString().toLowerCase();
       });
-      currentPage = 1;
       setFilterIndicator(sev ? `Showing: Severity: ${sev}` : '');
       renderTable();
     }
@@ -626,56 +883,123 @@
         if (typeof r.anomaly === 'string') return (r.anomaly.toLowerCase() === 'anomaly') === isAnomaly;
         return false;
       });
-      currentPage = 1;
       setFilterIndicator(isAnomaly ? 'Showing: Anomaly' : 'Showing: Normal');
       renderTable();
     }
     function showAllLogs() {
       filteredLogs = [];
-      currentPage = 1;
       setFilterIndicator('');
+      clearActiveStates();
       renderTable();
     }
-    // Add Reset Filters button
+    // Add Reset Filters button and stat card click handlers
     window.addEventListener('DOMContentLoaded', function() {
-      const tableContainer = document.querySelector('.logs-table-container') || document.querySelector('.card.table-card');
-      if (tableContainer && !document.getElementById('showAllBtn')) {
+      const tableTools = document.querySelector('.table-tools');
+      if (tableTools && !document.getElementById('showAllBtn')) {
         const btn = document.createElement('button');
         btn.textContent = 'Reset Filters';
         btn.className = 'btn outline';
         btn.id = 'showAllBtn';
         btn.onclick = showAllLogs;
-        tableContainer.insertBefore(btn, tableContainer.firstChild);
+        
+        // Insert before the Export CSV button
+        const exportBtn = document.getElementById('exportCsv');
+        tableTools.insertBefore(btn, exportBtn);
       }
+      
+      // Add click handlers to stat cards
+      addStatCardClickHandlers();
     });
-    // Chart click handlers
+    
+    function addStatCardClickHandlers() {
+      const statCards = document.querySelectorAll('.stat-card');
+      
+      statCards.forEach((card, index) => {
+        card.addEventListener('click', function() {
+          // Remove active class from all cards
+          statCards.forEach(c => c.classList.remove('active'));
+          
+          // Add active class to clicked card
+          this.classList.add('active');
+          
+          // Filter based on which stat card was clicked
+          switch(index) {
+            case 0: // Total Logs
+              showAllLogs();
+              // Don't set indicator since showAllLogs clears it
+              break;
+            case 1: // Anomalies
+              filterLogsByNormalAnomaly(true);
+              break;
+            case 2: // Critical Vulns
+              filterLogsBySeverity('Critical');
+              break;
+            case 3: // Normal Logs
+              filterLogsByNormalAnomaly(false);
+              break;
+          }
+        });
+        
+        // Add tooltip
+        const tooltips = [
+          'Click to show all logs',
+          'Click to show only anomalous logs',
+          'Click to show only critical vulnerabilities',
+          'Click to show only normal logs'
+        ];
+        card.title = tooltips[index];
+      });
+    }
+    // Chart click handlers with visual feedback
     function addChartClickHandlers(pieChart, barChart, donutChart, anomalyTypes, severityCounts) {
       // Pie: Normal/Anomaly
       document.getElementById('anomalyChart').onclick = function(evt) {
         const points = pieChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
         if (points.length) {
           const idx = points[0].index;
+          clearActiveStates();
+          this.parentElement.classList.add('chart-active');
           filterLogsByNormalAnomaly(idx === 1); // 0: Normal, 1: Anomaly
         }
       };
+      
       // Bar: Severity
       document.getElementById('vulnChart').onclick = function(evt) {
         const points = barChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
         if (points.length) {
           const idx = points[0].index;
           const sevs = ['Critical', 'High', 'Medium', 'Low'];
+          clearActiveStates();
+          this.parentElement.classList.add('chart-active');
           filterLogsBySeverity(sevs[idx]);
         }
       };
+      
       // Donut: Anomaly Type
       document.getElementById('anomalyTypeChart').onclick = function(evt) {
         const points = donutChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
         if (points.length) {
           const idx = points[0].index;
           const type = anomalyTypes[idx] && anomalyTypes[idx].type;
-          if (type) filterLogsByType(type);
+          if (type) {
+            clearActiveStates();
+            this.parentElement.classList.add('chart-active');
+            filterLogsByType(type);
+          }
         }
       };
+    }
+    
+    function clearActiveStates() {
+      // Clear stat card active states
+      document.querySelectorAll('.stat-card').forEach(card => {
+        card.classList.remove('active');
+      });
+      
+      // Clear chart active states
+      document.querySelectorAll('.chart-card').forEach(card => {
+        card.classList.remove('chart-active');
+      });
     }
 </script>
 </body>

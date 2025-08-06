@@ -241,8 +241,8 @@
                     <div class="relative bg-[#f8f9fa] dark:bg-gray-800 rounded-lg shadow-sm p-6 flex flex-col gap-2 zoom-in-delay-3">
                         <div class="font-semibold text-gray-900 dark:text-white">Elasticsearch Integration</div>
                         <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Configure your Elasticsearch index for log storage and retrieval.</div>
-                        <input type="text" name="index_name" placeholder="e.g., firewall-logs, application-logs" class="block w-full rounded border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white mb-2" />
-                        <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                        <input type="text" name="index_name" id="index_name" placeholder="e.g., firewall-logs, application-logs" class="block w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white mb-2" />
+                        <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
                             <span>Auto-indexing:</span>
                             <span>Leave blank to automatically create an index with format <code>flashlog-YYYY-MM-DD</code>.</span>
                         </div>
@@ -253,8 +253,8 @@
                         <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Upload your log files for comprehensive anomaly detection analysis.</div>
                         <input type="file" name="logfile" id="logfile" accept=".csv,.txt,.log" required class="block w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" />
                         <div class="mt-2 rounded px-3 py-2 text-sm flex items-center gap-2 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
-                            <span>Supports</span>
-                            <span>Supports: Raw log files (.txt, .log), CSV files, and unstructured log data</span>
+                            <span>Supports:</span>
+                            <span>Raw log files (.txt, .log), CSV files, and unstructured log data</span>
                         </div>
                     </div>
                 </div>
@@ -289,8 +289,24 @@
             // But we can add additional client-side checks if needed
         });
 
+        // Function to generate auto index name
+        function generateAutoIndexName() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `flashlog-${year}-${month}-${day}`;
+        }
+
         // Form submission handling - always redirect to separate page
         document.getElementById('analyze-form').addEventListener('submit', function(e) {
+            // Check if index name is empty and auto-generate if needed
+            const indexNameInput = document.getElementById('index_name');
+            if (!indexNameInput.value.trim()) {
+                indexNameInput.value = generateAutoIndexName();
+                console.log('[DEBUG] Auto-generated index name:', indexNameInput.value);
+            }
+            
             // Don't prevent default - let the form submit normally to redirect
             const submitButton = document.querySelector('button[type="submit"]');
             
@@ -300,7 +316,7 @@
             submitButton.classList.add('btn-analyzing');
             
             // Let the form submit normally - it will redirect to the separate page
-    });
+        });
     </script>
 
     <!-- Footer -->

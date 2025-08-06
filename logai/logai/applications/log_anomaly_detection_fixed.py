@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from logai.config_interfaces import WorkFlowConfig
-from logai.dataloader.data_loader import FileDataLoader, OpenSetDataLoader
+from logai.applications.application_interfaces import WorkFlowConfig
+from logai.dataloader.data_loader import FileDataLoader
+from logai.dataloader.openset_data_loader import OpenSetDataLoader
 from logai.information_extraction.feature_extractor import FeatureExtractor
 from logai.information_extraction.log_parser import LogParser
 from logai.information_extraction.log_vectorizer import LogVectorizer

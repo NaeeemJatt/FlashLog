@@ -77,17 +77,20 @@ def build_anomaly_prompt(anomalies):
     """
     total_anomalies = len(anomalies)
     prompt = (
-        "You are an expert in log analysis and anomaly detection. "
-        "I have a list of log anomalies from a system, and I need you to analyze them and classify each anomaly into distinct types. "
-        "For each type of anomaly, provide a severity level (Critical, High, Medium, Low) and the count of how many times this type appears in the provided logs. "
-        "Please respond ONLY with a JSON array of objects, where each object has the following structure: "
-        "{'type': string, 'severity': string, 'count': integer}. "
-        "Do not include any explanatory text or additional formatting outside the JSON array. "
-        "Ensure that the sum of the 'count' values in your response equals the total number of anomalies provided (" + str(total_anomalies) + "), "
-        "so that every anomaly is accounted for in one of the types. "
-        "If some anomalies cannot be classified into a specific type, include them under a type labeled 'Unclassified' with an appropriate severity. "
-        "If there are no anomalies to classify, return an empty JSON array []. "
-        "Here are the log anomalies for analysis (total: " + str(total_anomalies) + "):\n\n"
+        "You are an expert in cybersecurity and log analysis. "
+        "Analyze the following log anomalies and classify them into distinct types with human-readable descriptions. "
+        "For each anomaly type, provide:\n"
+        "- type: A clear category name (e.g., 'Connection Retry Attack', 'Brute Force Attempt', 'Resource Exhaustion')\n"
+        "- severity: Critical, High, Medium, or Low\n"
+        "- count: Number of occurrences\n"
+        "- reason: A human-readable explanation of what this indicates (e.g., 'Potential brute force login attempts detected', 'System experiencing connection timeout issues')\n"
+        "- mitigation: Actionable recommendation (e.g., 'Implement rate limiting and monitor failed login attempts', 'Check network connectivity and retry configuration')\n\n"
+        "Respond ONLY with a JSON array in this exact format:\n"
+        "[{'type': 'string', 'severity': 'string', 'count': integer, 'reason': 'string', 'mitigation': 'string'}]\n\n"
+        "Make reasons and mitigations specific and actionable, avoiding generic phrases like 'detected pattern'. "
+        "Focus on security implications, performance issues, or operational concerns. "
+        "Ensure the sum of counts equals " + str(total_anomalies) + ".\n\n"
+        "Log anomalies to analyze:\n\n"
     )
     for i, anomaly in enumerate(anomalies, 1):
         log_line = anomaly.get('logline', str(anomaly))

@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuous Learning Dashboard - FlashLog Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #4a5568;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+        
+        /* Summary Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .summary-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .summary-card h3 {
+            color: #4a5568;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .summary-card .metric {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        
+        .summary-card .sub-metric {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        .summary-card.pending { border-left: 5px solid #f56565; }
+        .summary-card.approved { border-left: 5px solid #48bb78; }
+        .summary-card.improvement { border-left: 5px solid #4299e1; }
+        .summary-card.patterns { border-left: 5px solid #9f7aea; }
+        
+        /* Tabs */
+        .learning-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px 15px 0 0;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #718096;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .tab:hover:not(.active) {
+            background: rgba(66, 153, 225, 0.1);
+            color: #4299e1;
+        }
+        
+        /* Tab Content */
+        .tab-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 0 0 15px 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Learning Filters */
+        .learning-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .learning-filters select {
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .learning-filters select:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3182ce;
+            transform: translateY(-1px);
+        }
+        
+        .btn-approve {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-approve:hover {
+            background: #38a169;
+        }
+        
+        .btn-reject {
+            background: #f56565;
+            color: white;
+        }
+        
+        .btn-reject:hover {
+            background: #e53e3e;
+        }
+        
+        .btn-details {
+            background: #9f7aea;
+            color: white;
+        }
+        
+        .btn-details:hover {
+            background: #805ad5;
+        }
+        
+        /* Learning Items */
+        .learning-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .learning-item {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .learning-item:hover {
+            border-color: #4299e1;
+            box-shadow: 0 4px 16px rgba(66, 153, 225, 0.1);
+        }
+        
+        .learning-item.selected {
+            border-color: #4299e1;
+            background: rgba(66, 153, 225, 0.05);
+        }
+        
+        .learning-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .algorithm-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .algorithm-badge.isolation_forest {
+            background: rgba(72, 187, 120, 0.1);
+            color: #38a169;
+        }
+        
+        .algorithm-badge.lof {
+            background: rgba(66, 153, 225, 0.1);
+            color: #3182ce;
+        }
+        
+        .algorithm-badge.one_class_svm {
+            background: rgba(159, 122, 234, 0.1);
+            color: #805ad5;
+        }
+        
+        .algorithm-badge.ensemble {
+            background: rgba(245, 101, 101, 0.1);
+            color: #e53e3e;
+        }
+        
+        .algorithm-badge.pattern_recognition {
+            background: rgba(237, 137, 54, 0.1);
+            color: #dd6b20;
+        }
+        
+        .learning-type {
+            padding: 4px 10px;
+            background: rgba(113, 128, 150, 0.1);
+            color: #4a5568;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .confidence-score {
+            margin-left: auto;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .confidence-score.high {
+            color: #38a169;
+        }
+        
+        .confidence-score.medium {
+            color: #d69e2e;
+        }
+        
+        .confidence-score.low {
+            color: #e53e3e;
+        }
+        
+        .learning-content {
+            padding: 20px;
+        }
+        
+        .learning-content h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .potential-improvement {
+            color: #4a5568;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(72, 187, 120, 0.05);
+            border-left: 3px solid #48bb78;
+            border-radius: 5px;
+        }
+        
+        .parameter-suggestions {
+            margin-bottom: 15px;
+        }
+        
+        .parameter-suggestions h5 {
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .parameter-suggestions pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        
+        .evidence-logs {
+            margin-bottom: 15px;
+        }
+        
+        .evidence-logs h5 {
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .log-example {
+            background: #f1f5f9;
+            padding: 8px 12px;
+            border-left: 3px solid #cbd5e0;
+            margin-bottom: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #4a5568;
+        }
+        
+        .learning-actions {
+            display: flex;
+            gap: 10px;
+            padding: 20px;
+            background: #f7fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        /* Batch Selection */
+        .batch-selection {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            display: none;
+            align-items: center;
+            gap: 15px;
+            z-index: 1000;
+        }
+        
+        .batch-selection.visible {
+            display: flex;
+        }
+        
+        /* Loading States */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        .loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .learning-filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .learning-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .confidence-score {
+                margin-left: 0;
+            }
+            
+            .learning-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧠 Continuous Learning Dashboard</h1>
+            <p>Review and approve algorithm learnings to improve anomaly detection performance</p>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card pending">
+                <h3>Pending Review</h3>
+                <div class="metric">{{ summary_stats.pending_count }}</div>
+                <div class="sub-metric">{{ summary_stats.high_confidence_count }} high confidence</div>
+            </div>
+            
+            <div class="summary-card approved">
+                <h3>Approved This Week</h3>
+                <div class="metric">{{ summary_stats.recent_approvals }}</div>
+                <div class="sub-metric">Learning applications</div>
+            </div>
+            
+            <div class="summary-card improvement">
+                <h3>Average Confidence</h3>
+                <div class="metric">{{ "%.0f"|format(summary_stats.avg_confidence * 100) }}%</div>
+                <div class="sub-metric">Prediction accuracy</div>
+            </div>
+            
+            <div class="summary-card patterns">
+                <h3>Active Patterns</h3>
+                <div class="metric">{{ pattern_library|length }}</div>
+                <div class="sub-metric">Detection patterns</div>
+            </div>
+        </div>
+
+        <!-- Learning Categories -->
+        <div class="learning-tabs">
+            <button class="tab active" data-tab="pending">📋 Pending Review</button>
+            <button class="tab" data-tab="patterns">🔍 Pattern Library</button>
+            <button class="tab" data-tab="metrics">📊 Performance Metrics</button>
+            <button class="tab" data-tab="history">📚 Learning History</button>
+        </div>
+
+        <!-- Pending Learnings Tab -->
+        <div id="pending-tab" class="tab-content active">
+            <div class="learning-filters">
+                <select id="algorithm-filter">
+                    <option value="">All Algorithms</option>
+                    <option value="isolation_forest">Isolation Forest</option>
+                    <option value="lof">LOF</option>
+                    <option value="one_class_svm">One-Class SVM</option>
+                    <option value="ensemble">Ensemble</option>
+                    <option value="pattern_recognition">Pattern Recognition</option>
+                </select>
+                
+                <select id="type-filter">
+                    <option value="">All Types</option>
+                    <option value="parameter">Parameter Optimization</option>
+                    <option value="pattern">Pattern Recognition</option>
+                    <option value="feature">Feature Engineering</option>
+                    <option value="threshold">Threshold Adjustment</option>
+                </select>
+                
+                <button id="batch-approve" class="btn btn-primary">✅ Batch Approve Selected</button>
+                <button id="select-all" class="btn btn-details">☑️ Select All</button>
+                <button id="clear-selection" class="btn btn-reject">✖️ Clear Selection</button>
+            </div>
+
+            <div class="learning-list" id="learning-list">
+                {% for learning in pending_learnings %}
+                <div class="learning-item" data-id="{{ learning.id }}">
+                    <div class="learning-header">
+                        <input type="checkbox" class="learning-checkbox" value="{{ learning.id }}">
+                        <div class="algorithm-badge {{ learning.algorithm_name }}">
+                            {{ learning.algorithm_name|replace('_', ' ')|title }}
+                        </div>
+                        <div class="learning-type">{{ learning.learning_type|title }}</div>
+                        <div class="confidence-score {% if learning.confidence_score > 0.7 %}high{% elif learning.confidence_score > 0.5 %}medium{% else %}low{% endif %}">
+                            Confidence: {{ "%.0f"|format(learning.confidence_score * 100) }}%
+                        </div>
+                    </div>
+                    
+                    <div class="learning-content">
+                        <h4>{{ learning.learning_description }}</h4>
+                        <p class="potential-improvement">
+                            <strong>💡 Potential Improvement:</strong> {{ learning.potential_improvement }}
+                        </p>
+                        
+                        {% if learning.suggested_parameters %}
+                        <div class="parameter-suggestions">
+                            <h5>🔧 Suggested Parameters:</h5>
+                            <pre>{{ learning.suggested_parameters }}</pre>
+                        </div>
+                        {% endif %}
+                        
+                        {% if learning.evidence_logs %}
+                        <div class="evidence-logs">
+                            <h5>📝 Evidence Logs:</h5>
+                            <div class="log-examples">
+                                {% set evidence = learning.evidence_logs|from_json %}
+                                {% for log in evidence[:3] %}
+                                <div class="log-example">{{ log }}</div>
+                                {% endfor %}
+                                {% if evidence|length > 3 %}
+                                <div class="log-example">... and {{ evidence|length - 3 }} more logs</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="learning-actions">
+                        <button class="btn btn-approve" onclick="approveLearning({{ learning.id }})">
+                            ✅ Approve
+                        </button>
+                        <button class="btn btn-reject" onclick="rejectLearning({{ learning.id }})">
+                            ❌ Reject
+                        </button>
+                        <button class="btn btn-details" onclick="showLearningDetails({{ learning.id }})">
+                            🔍 Details
+                        </button>
+                        <button class="btn btn-primary" onclick="simulateLearning({{ learning.id }})">
+                            🧪 Simulate
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not pending_learnings %}
+                <div style="text-align: center; padding: 40px; color: #718096;">
+                    <h3>🎉 No pending learnings!</h3>
+                    <p>All algorithm learnings have been reviewed.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pattern Library Tab -->
+        <div id="patterns-tab" class="tab-content">
+            <div class="pattern-library">
+                <h3>🔍 Active Detection Patterns</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                    {% for pattern in pattern_library %}
+                    <div class="learning-item">
+                        <div class="learning-header">
+                            <div class="algorithm-badge {{ pattern.pattern_type }}">
+                                {{ pattern.pattern_type|title }}
+                            </div>
+                            <div class="learning-type">{{ pattern.severity_level|title }}</div>
+                            <div class="confidence-score">
+                                {{ "%.0f"|format(pattern.accuracy_score * 100) }}% accurate
+                            </div>
+                        </div>
+                        <div class="learning-content">
+                            <h4>{{ pattern.pattern_description }}</h4>
+                            <div class="parameter-suggestions">
+                                <h5>🔧 Pattern:</h5>
+                                <pre>{{ pattern.pattern_regex }}</pre>
+                            </div>
+                            <div style="display: flex; gap: 20px; font-size: 0.9rem; color: #718096;">
+                                <span>🎯 Detected: {{ pattern.detection_count }}</span>
+                                <span>❌ False Positives: {{ pattern.false_positive_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics Tab -->
+        <div id="metrics-tab" class="tab-content">
+            <h3>📊 Learning Performance Metrics</h3>
+            <p style="color: #718096; margin-bottom: 20px;">Track how well applied learnings improve system performance</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                {% for metric in learning_metrics %}
+                <div class="summary-card">
+                    <h3>{{ metric.algorithm_name|replace('_', ' ')|title }}</h3>
+                    <div class="metric">{{ "%.1f"|format(metric.improvement_percentage) }}%</div>
+                    <div class="sub-metric">{{ metric.metric_name|title }} improvement</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Learning History Tab -->
+        <div id="history-tab" class="tab-content">
+            <h3>📚 Learning History</h3>
+            <p style="color: #718096;">Track of all learning activities and their outcomes</p>
+            
+            <div style="margin-top: 20px; text-align: center; padding: 40px; color: #718096;">
+                <h4>Coming Soon</h4>
+                <p>Comprehensive learning history and analytics</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Selection Indicator -->
+    <div class="batch-selection" id="batch-selection">
+        <span id="selection-count">0 selected</span>
+        <button class="btn btn-primary" onclick="batchApprove()">Approve Selected</button>
+        <button class="btn btn-reject" onclick="clearSelection()">Clear</button>
+    </div>
+
+    <script>
+        // Tab management
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabId = this.dataset.tab;
+                
+                // Update active tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                
+                this.classList.add('active');
+                document.getElementById(tabId + '-tab').classList.add('active');
+            });
+        });
+
+        // Learning selection management
+        let selectedLearnings = new Set();
+
+        function updateSelectionUI() {
+            const count = selectedLearnings.size;
+            const batchSelection = document.getElementById('batch-selection');
+            const selectionCount = document.getElementById('selection-count');
+            
+            if (count > 0) {
+                batchSelection.classList.add('visible');
+                selectionCount.textContent = `${count} selected`;
+            } else {
+                batchSelection.classList.remove('visible');
+            }
+        }
+
+        // Checkbox event listeners
+        document.querySelectorAll('.learning-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const learningId = this.value;
+                const learningItem = this.closest('.learning-item');
+                
+                if (this.checked) {
+                    selectedLearnings.add(learningId);
+                    learningItem.classList.add('selected');
+                } else {
+                    selectedLearnings.delete(learningId);
+                    learningItem.classList.remove('selected');
+                }
+                
+                updateSelectionUI();
+            });
+        });
+
+        // Select all button
+        document.getElementById('select-all').addEventListener('click', function() {
+            document.querySelectorAll('.learning-checkbox').forEach(checkbox => {
+                checkbox.checked = true;
+                selectedLearnings.add(checkbox.value);
+                checkbox.closest('.learning-item').classList.add('selected');
+            });
+            updateSelectionUI();
+        });
+
+        // Clear selection button
+        document.getElementById('clear-selection').addEventListener('click', clearSelection);
+
+        function clearSelection() {
+            document.querySelectorAll('.learning-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.closest('.learning-item').classList.remove('selected');
+            });
+            selectedLearnings.clear();
+            updateSelectionUI();
+        }
+
+        // Learning actions
+        async function approveLearning(learningId) {
+            if (!confirm('Are you sure you want to approve this learning?')) return;
+            
+            try {
+                const response = await fetch(`/admin/learning/approve/${learningId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Learning approved successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error approving learning: ' + error.message);
+            }
+        }
+
+        async function rejectLearning(learningId) {
+            const reason = prompt('Please provide a reason for rejection:');
+            if (!reason) return;
+            
+            try {
+                const response = await fetch(`/admin/learning/reject/${learningId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ reason: reason })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Learning rejected successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error rejecting learning: ' + error.message);
+            }
+        }
+
+        async function batchApprove() {
+            if (selectedLearnings.size === 0) return;
+            
+            if (!confirm(`Are you sure you want to approve ${selectedLearnings.size} learnings?`)) return;
+            
+            try {
+                const response = await fetch('/admin/learning/batch_approve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        learning_ids: Array.from(selectedLearnings)
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`Batch approval completed!\nSuccessful: ${result.summary.successful}\nFailed: ${result.summary.failed}`);
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error with batch approval: ' + error.message);
+            }
+        }
+
+        async function showLearningDetails(learningId) {
+            try {
+                const response = await fetch(`/admin/learning/details/${learningId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Create and show modal with details
+                    showDetailsModal(result.details);
+                } else {
+                    alert('Error loading details: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error loading details: ' + error.message);
+            }
+        }
+
+        async function simulateLearning(learningId) {
+            try {
+                const response = await fetch(`/admin/learning/simulate/${learningId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const sim = result.simulation;
+                    alert(`Simulation Results:\n\nPredicted Improvement: ${sim.predicted_improvement}\nRisk Level: ${sim.risk_level}\nEstimated Impact: ${sim.estimated_impact}`);
+                } else {
+                    alert('Error running simulation: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error running simulation: ' + error.message);
+            }
+        }
+
+        function showDetailsModal(details) {
+            // Simplified modal display - in practice would be more sophisticated
+            const detailsText = JSON.stringify(details, null, 2);
+            const modal = window.open('', '_blank', 'width=800,height=600');
+            modal.document.write(`
+                <html>
+                    <head><title>Learning Details</title></head>
+                    <body style="font-family: monospace; padding: 20px;">
+                        <h2>Learning Details</h2>
+                        <pre>${detailsText}</pre>
+                        <button onclick="window.close()">Close</button>
+                    </body>
+                </html>
+            `);
+        }
+
+        // Filters
+        document.getElementById('algorithm-filter').addEventListener('change', applyFilters);
+        document.getElementById('type-filter').addEventListener('change', applyFilters);
+
+        function applyFilters() {
+            const algorithmFilter = document.getElementById('algorithm-filter').value;
+            const typeFilter = document.getElementById('type-filter').value;
+            
+            document.querySelectorAll('.learning-item').forEach(item => {
+                const algorithm = item.querySelector('.algorithm-badge').className.split(' ')[1];
+                const type = item.querySelector('.learning-type').textContent.toLowerCase();
+                
+                const algorithmMatch = !algorithmFilter || algorithm === algorithmFilter;
+                const typeMatch = !typeFilter || type.includes(typeFilter);
+                
+                if (algorithmMatch && typeMatch) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Initialize
+        console.log('🧠 Continuous Learning Dashboard initialized');
+        console.log(`📊 Found ${document.querySelectorAll('.learning-item').length} pending learnings`);
+    </script>
+</body>
+</html>

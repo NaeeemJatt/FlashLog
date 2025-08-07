@@ -9,7 +9,7 @@ from datetime import datetime
 
 def create_sample_data():
     """Create sample learning data"""
-    conn = sqlite3.connect('flashlog/flashlog.db')
+    conn = sqlite3.connect('flashlog.db')
     cursor = conn.cursor()
     
     # Create sample session

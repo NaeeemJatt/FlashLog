@@ -201,7 +201,7 @@
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-l-4 border-red-500 hover:shadow-md transition-all duration-200 zoom-in-delay-1">
                     <div class="p-6">
                         <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Pending Review</h3>
-                        <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1">{{ summary_stats.pending_count }}</div>
+                        <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1 pending-count-display">{{ summary_stats.pending_count }}</div>
                         <div class="text-sm text-gray-600 dark:text-gray-400">{{ summary_stats.high_confidence_count }} high confidence</div>
                     </div>
                 </div>
@@ -1117,12 +1117,15 @@
             showModal('reject-modal');
         }
 
-        async function confirmApproveLearning() {
+                async function confirmApproveLearning() {
             if (!currentLearningData || currentLearningData.type !== 'approve') return;
-
+            
+            // Store the learning ID before clearing currentLearningData
+            const learningId = currentLearningData.id;
+            
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                const response = await fetch(`/admin/learning/approve/${currentLearningData.id}`, {
+                const response = await fetch(`/admin/learning/approve/${learningId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1135,7 +1138,21 @@
                 if (result.success) {
                     closeApproveModal();
                     showSuccessMessage('Learning approved successfully! (Ready for application)');
-                    setTimeout(() => location.reload(), 1500);
+                    
+                    // Immediately remove the approved learning from the DOM
+                    const learningItem = document.querySelector(`[data-id="${learningId}"]`);
+                    if (learningItem) {
+                        learningItem.style.opacity = '0';
+                        learningItem.style.transform = 'translateX(100%)';
+                        setTimeout(() => {
+                            learningItem.remove();
+                            // Update the count display if it exists
+                            updatePendingCount();
+                        }, 300);
+                    } else {
+                        // If DOM element not found, just update the count
+                        updatePendingCount();
+                    }
                 } else {
                     showErrorMessage('Error: ' + result.error);
                 }
@@ -1153,9 +1170,12 @@
                 return;
             }
             
+            // Store the learning ID before clearing currentLearningData
+            const learningId = currentLearningData.id;
+            
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                const response = await fetch(`/admin/learning/reject/${currentLearningData.id}`, {
+                const response = await fetch(`/admin/learning/reject/${learningId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1169,7 +1189,21 @@
                 if (result.success) {
                     closeRejectModal();
                     showSuccessMessage('Learning rejected successfully!');
-                    setTimeout(() => location.reload(), 1500);
+                    
+                    // Immediately remove the rejected learning from the DOM
+                    const learningItem = document.querySelector(`[data-id="${learningId}"]`);
+                    if (learningItem) {
+                        learningItem.style.opacity = '0';
+                        learningItem.style.transform = 'translateX(-100%)';
+                        setTimeout(() => {
+                            learningItem.remove();
+                            // Update the count display if it exists
+                            updatePendingCount();
+                        }, 300);
+                    } else {
+                        // If DOM element not found, just update the count
+                        updatePendingCount();
+                    }
                 } else {
                     showErrorMessage('Error: ' + result.error);
                 }
@@ -1475,10 +1509,28 @@
                         showSuccessMessage(`Batch approval completed successfully! ${successfulCount} learnings approved (Ready for application)`);
                     }
                     
-                    // Clear selection and reload after a delay to show the message
+                    // Remove successfully approved learnings from DOM
+                    const approvedIds = result.results
+                        .filter(r => r.success)
+                        .map(r => r.learning_id);
+                    
+                    approvedIds.forEach((id, index) => {
+                        const learningItem = document.querySelector(`[data-id="${id}"]`);
+                        if (learningItem) {
+                            learningItem.style.opacity = '0';
+                            learningItem.style.transform = 'translateX(100%)';
+                            setTimeout(() => {
+                                learningItem.remove();
+                            }, 300 + (index * 50)); // Stagger the animations
+                        }
+                    });
+                    
+                    // Clear selection and update count after animations
                     selectedLearnings.clear();
                     updateSelectionUI();
-                    setTimeout(() => location.reload(), 3000);
+                    setTimeout(() => {
+                        updatePendingCount();
+                    }, 500 + (approvedIds.length * 50));
                 } else {
                     showErrorMessage('Error: ' + result.error);
                 }
@@ -1743,13 +1795,57 @@
                 
                 if (result.success) {
                     showSuccessMessage('Learning applied to production successfully!');
-                    setTimeout(() => location.reload(), 1500);
+                    // Remove the learning from the approved list instead of reloading
+                    const learningItem = document.querySelector(`[data-id="${learningId}"]`);
+                    if (learningItem) {
+                        learningItem.style.animation = 'fadeOut 0.3s ease-out';
+                        setTimeout(() => {
+                            learningItem.remove();
+                            // Check if no more approved learnings
+                            const remainingItems = document.querySelectorAll('#approved-learning-list .approved-item');
+                            if (remainingItems.length === 0) {
+                                const container = document.getElementById('approved-learning-list');
+                                container.innerHTML = `
+                                    <div class="text-center py-10 text-gray-600 dark:text-gray-400">
+                                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">📭 No approved learnings!</h3>
+                                        <p>All approved learnings have been applied.</p>
+                                    </div>
+                                `;
+                            }
+                        }, 300);
+                    }
                 } else {
                     showErrorMessage('Error applying learning: ' + result.error);
                 }
             } catch (error) {
                 console.error('Apply error:', error);
                 showErrorMessage('Error applying learning: ' + error.message);
+            }
+        }
+
+        // Function to update pending count display
+        function updatePendingCount() {
+            const learningItems = document.querySelectorAll('#learning-list .learning-item');
+            const count = learningItems.length;
+            
+            // Update the pending count display in the summary card
+            const pendingCountElement = document.querySelector('.pending-count-display');
+            if (pendingCountElement) {
+                pendingCountElement.textContent = count;
+            }
+            
+            // If no more pending learnings, show a message
+            if (count === 0) {
+                const learningList = document.getElementById('learning-list');
+                if (learningList) {
+                    learningList.innerHTML = `
+                        <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <div class="text-4xl mb-4">🎉</div>
+                            <h3 class="text-lg font-semibold mb-2">No Pending Reviews!</h3>
+                            <p class="text-sm">All learnings have been reviewed. New learnings will appear here as they are generated.</p>
+                        </div>
+                    `;
+                }
             }
         }
     </script>

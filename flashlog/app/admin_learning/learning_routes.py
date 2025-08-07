@@ -920,14 +920,71 @@ def calculate_recent_approvals():
     return count
 
 def run_learning_simulation(learning):
-    """Simulate learning application"""
-    # Placeholder for simulation logic
-    return {
-        'predicted_improvement': f"{learning['confidence_score'] * 10:.1f}%",
-        'risk_level': 'Low' if learning['confidence_score'] > 0.7 else 'Medium',
-        'estimated_impact': learning['potential_improvement'],
-        'simulation_time': datetime.now().isoformat()
-    }
+    """Simulate learning application with real data analysis"""
+    try:
+        conn = get_learning_db_connection()
+        cursor = conn.cursor()
+        
+        # Get historical performance data for this algorithm
+        cursor.execute('''
+            SELECT AVG(improvement_percentage) as avg_improvement,
+                   COUNT(*) as sample_size
+            FROM learning_metrics 
+            WHERE algorithm_name = ?
+        ''', (learning['algorithm_name'],))
+        
+        result = cursor.fetchone()
+        avg_improvement = result[0] if result and result[0] else 0
+        sample_size = result[1] if result else 0
+        
+        # Calculate predicted improvement based on confidence and historical data
+        base_improvement = learning['confidence_score'] * 15  # Base improvement
+        historical_factor = avg_improvement * 0.3 if sample_size > 0 else 0  # 30% weight to historical
+        confidence_factor = learning['confidence_score'] * 10  # 70% weight to confidence
+        
+        predicted_improvement = base_improvement + historical_factor + confidence_factor
+        
+        # Determine risk level based on confidence and historical data
+        risk_level = 'Low'
+        if learning['confidence_score'] < 0.5:
+            risk_level = 'High'
+        elif learning['confidence_score'] < 0.7:
+            risk_level = 'Medium'
+        
+        # Get recent performance trends
+        week_ago = datetime.now() - timedelta(days=7)
+        recent_trend = cursor.execute('''
+            SELECT AVG(improvement_percentage) 
+            FROM learning_metrics 
+            WHERE algorithm_name = ? AND created_at > ?
+        ''', (learning['algorithm_name'], week_ago)).fetchone()[0]
+        
+        trend_indicator = "↗️ Improving" if (recent_trend or 0) > avg_improvement else "↘️ Declining"
+        
+        conn.close()
+        
+        return {
+            'predicted_improvement': f"{predicted_improvement:.1f}%",
+            'risk_level': risk_level,
+            'estimated_impact': learning['potential_improvement'],
+            'historical_average': f"{avg_improvement:.1f}%",
+            'sample_size': sample_size,
+            'trend': trend_indicator,
+            'simulation_time': datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Simulation failed: {e}")
+        # Fallback to basic simulation
+        return {
+            'predicted_improvement': f"{learning['confidence_score'] * 10:.1f}%",
+            'risk_level': 'Low' if learning['confidence_score'] > 0.7 else 'Medium',
+            'estimated_impact': learning['potential_improvement'],
+            'historical_average': 'N/A',
+            'sample_size': 0,
+            'trend': 'Unknown',
+            'simulation_time': datetime.now().isoformat()
+        }
 
 def get_related_metrics(session_id, algorithm_name):
     """Get metrics related to a learning"""
@@ -965,18 +1022,84 @@ def calculate_pattern_stats(patterns):
     }
 
 def get_comprehensive_learning_metrics():
-    """Get comprehensive learning metrics"""
-    # Placeholder for comprehensive metrics
-    return {
-        'total_learnings_generated': 150,
-        'approval_rate': 0.68,
-        'average_improvement': 12.5,
-        'top_performing_algorithms': ['lof', 'isolation_forest'],
-        'recent_trends': {
-            'week_over_week_improvement': 5.2,
-            'false_positive_reduction': 15.3
+    """Get comprehensive learning metrics from database"""
+    try:
+        conn = get_learning_db_connection()
+        cursor = conn.cursor()
+        
+        # Get total learnings generated
+        total_learnings = cursor.execute('SELECT COUNT(*) FROM algorithm_learnings').fetchone()[0]
+        
+        # Get approval rate
+        approved_count = cursor.execute('SELECT COUNT(*) FROM algorithm_learnings WHERE status = "approved"').fetchone()[0]
+        applied_count = cursor.execute('SELECT COUNT(*) FROM algorithm_learnings WHERE status = "applied"').fetchone()[0]
+        total_processed = cursor.execute('SELECT COUNT(*) FROM algorithm_learnings WHERE status IN ("approved", "applied", "rejected")').fetchone()[0]
+        
+        approval_rate = (approved_count + applied_count) / total_processed if total_processed > 0 else 0
+        
+        # Get average improvement from learning metrics
+        avg_improvement = cursor.execute('SELECT AVG(improvement_percentage) FROM learning_metrics').fetchone()[0]
+        avg_improvement = avg_improvement if avg_improvement else 0
+        
+        # Get top performing algorithms
+        top_algorithms = cursor.execute('''
+            SELECT algorithm_name, COUNT(*) as count 
+            FROM algorithm_learnings 
+            WHERE status IN ("approved", "applied") 
+            GROUP BY algorithm_name 
+            ORDER BY count DESC 
+            LIMIT 3
+        ''').fetchall()
+        top_performing = [row[0] for row in top_algorithms]
+        
+        # Calculate recent trends (week over week)
+        week_ago = datetime.now() - timedelta(days=7)
+        two_weeks_ago = datetime.now() - timedelta(days=14)
+        
+        recent_improvements = cursor.execute('''
+            SELECT AVG(improvement_percentage) 
+            FROM learning_metrics 
+            WHERE created_at > ?
+        ''', (week_ago,)).fetchone()[0]
+        
+        previous_improvements = cursor.execute('''
+            SELECT AVG(improvement_percentage) 
+            FROM learning_metrics 
+            WHERE created_at BETWEEN ? AND ?
+        ''', (two_weeks_ago, week_ago)).fetchone()[0]
+        
+        week_over_week_improvement = 0
+        if previous_improvements and previous_improvements > 0:
+            week_over_week_improvement = ((recent_improvements or 0) - previous_improvements) / previous_improvements * 100
+        
+        # Calculate false positive reduction (placeholder - would need more detailed metrics)
+        false_positive_reduction = 0  # This would need specific false positive tracking
+        
+        conn.close()
+        
+        return {
+            'total_learnings_generated': total_learnings,
+            'approval_rate': approval_rate,
+            'average_improvement': avg_improvement,
+            'top_performing_algorithms': top_performing,
+            'recent_trends': {
+                'week_over_week_improvement': week_over_week_improvement,
+                'false_positive_reduction': false_positive_reduction
+            }
         }
-    }
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to get comprehensive metrics: {e}")
+        return {
+            'total_learnings_generated': 0,
+            'approval_rate': 0,
+            'average_improvement': 0,
+            'top_performing_algorithms': [],
+            'recent_trends': {
+                'week_over_week_improvement': 0,
+                'false_positive_reduction': 0
+            }
+        }
 
 def get_approved_learnings():
     """Get all approved learnings from the database"""

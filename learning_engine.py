@@ -12,7 +12,7 @@ from collections import defaultdict
 import re
 
 class ContinuousLearningEngine:
-    def __init__(self, db_path='flashlog.db'):
+    def __init__(self, db_path='../flashlog.db'):
         self.db_path = db_path
         self.init_learning_tables()
         

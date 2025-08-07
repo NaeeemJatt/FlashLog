@@ -13,7 +13,41 @@ def admin_dashboard():
     user_role = session.get('role', 'user')
     if user_role != 'admin':
         return redirect(url_for('main.user_dashboard'))
-    return render_template('admin/dashboard.html')
+    
+    # Calculate real metrics from database
+    try:
+        from datetime import datetime, timedelta
+        conn = get_db_connection()
+        
+        # Get total users
+        total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        
+        # Get active users (enabled accounts)
+        active_users = conn.execute('SELECT COUNT(*) FROM users WHERE is_active = 1').fetchone()[0]
+        
+        # Get admin users
+        admin_users = conn.execute('SELECT COUNT(*) FROM users WHERE role = "admin"').fetchone()[0]
+        
+        # Get recent logins (last 24 hours)
+        since = (datetime.utcnow() - timedelta(days=1)).isoformat(sep=' ', timespec='seconds')
+        recent_logins = conn.execute('SELECT COUNT(*) FROM users WHERE last_login >= ?', (since,)).fetchone()[0]
+        
+        conn.close()
+        
+        return render_template('admin/dashboard.html',
+                              total_users=total_users,
+                              active_users=active_users,
+                              admin_users=admin_users,
+                              recent_logins=recent_logins)
+                              
+    except Exception as e:
+        print(f"[ERROR] Failed to calculate admin dashboard metrics: {e}")
+        # Fallback to default values if database query fails
+        return render_template('admin/dashboard.html',
+                              total_users=0,
+                              active_users=0,
+                              admin_users=0,
+                              recent_logins=0)
 
 @admin.route('/users')
 @login_required

@@ -103,7 +103,7 @@
             {% endwith %}
 
             <!-- Quick Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <!-- Total Users -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden fade-in">
                     <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
@@ -167,26 +167,7 @@
                     </div>
                 </div>
 
-                <!-- Recent Activity -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden fade-in">
-                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-lg font-semibold text-white">Recent Logins</h3>
-                                <p class="text-blue-100 text-sm">Last 24 hours</p>
-                            </div>
-                            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <div class="text-3xl font-bold text-gray-900 dark:text-white">{{ recent_logins|default(0) }}</div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Today's logins</div>
-                    </div>
-                </div>
+
             </div>
 
             <!-- Quick Actions -->

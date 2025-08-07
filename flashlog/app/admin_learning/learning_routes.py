@@ -21,7 +21,7 @@ admin_learning_bp = Blueprint('admin_learning', __name__, url_prefix='/admin/lea
 
 def get_learning_db_connection():
     """Get database connection for learning data (flashlog.db, not users.db)"""
-    conn = sqlite3.connect('flashlog.db')
+    conn = sqlite3.connect('../flashlog.db')
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -48,6 +48,9 @@ def learning_dashboard():
         # Get learning impact data
         impact_data = get_learning_impact_data()
         
+        # Get learning history data
+        learning_history = get_learning_history()
+        
         # Calculate summary statistics
         summary_stats = calculate_summary_stats(pending_learnings, learning_metrics)
         
@@ -57,6 +60,7 @@ def learning_dashboard():
                              learning_metrics=learning_metrics,
                              pattern_library=pattern_library,
                              impact_data=impact_data,
+                             learning_history=learning_history,
                              summary_stats=summary_stats)
                              
     except Exception as e:
@@ -95,7 +99,7 @@ def api_get_pending_learnings():
 @login_required
 @admin_required
 def approve_learning(learning_id):
-    """Approve a specific learning"""
+    """Approve a specific learning (without applying to production)"""
     try:
         # Get learning details
         learning = get_learning_by_id(learning_id)
@@ -110,24 +114,62 @@ def approve_learning(learning_id):
                 'error': f'Validation failed: {validation_result["error"]}'
             }), 400
         
+        # Update database - only approve, don't apply
+        update_learning_status(learning_id, 'approved', current_user.id)
+        
+        # Log the approval
+        log_admin_action(current_user.id, 'approve_learning', {
+            'learning_id': learning_id,
+            'algorithm': learning['algorithm_name'],
+            'type': learning['learning_type'],
+            'description': learning['learning_description']
+        })
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Learning approved successfully (ready for application)'
+        })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_learning_bp.route('/apply/<int:learning_id>', methods=['POST'])
+@login_required
+@admin_required
+def apply_learning_endpoint(learning_id):
+    """Apply an approved learning to production system"""
+    try:
+        # Get learning details
+        learning = get_learning_by_id(learning_id)
+        if not learning:
+            return jsonify({'success': False, 'error': 'Learning not found'}), 404
+        
+        # Check if learning is approved
+        if learning['status'] != 'approved':
+            return jsonify({
+                'success': False, 
+                'error': 'Learning must be approved before it can be applied'
+            }), 400
+        
         # Apply the learning
         result = apply_learning(learning)
         
         if result['success']:
-            # Update database
-            update_learning_status(learning_id, 'approved', current_user.id)
+            # Update database to mark as applied
+            update_learning_status(learning_id, 'applied', current_user.id)
             
-            # Log the approval
-            log_admin_action(current_user.id, 'approve_learning', {
+            # Log the application
+            log_admin_action(current_user.id, 'apply_learning', {
                 'learning_id': learning_id,
                 'algorithm': learning['algorithm_name'],
                 'type': learning['learning_type'],
-                'description': learning['learning_description']
+                'description': learning['learning_description'],
+                'applied_changes': result.get('applied_changes', {})
             })
             
             return jsonify({
                 'success': True, 
-                'message': 'Learning approved and applied successfully',
+                'message': 'Learning applied to production successfully',
                 'applied_changes': result.get('applied_changes', {})
             })
         else:
@@ -166,7 +208,7 @@ def reject_learning(learning_id):
 @login_required
 @admin_required
 def batch_approve_learnings():
-    """Approve multiple learnings at once"""
+    """Approve multiple learnings at once (without applying to production)"""
     try:
         data = request.get_json()
         learning_ids = data.get('learning_ids', [])
@@ -188,7 +230,7 @@ def batch_approve_learnings():
                     })
                     continue
                 
-                # Validate and apply learning
+                # Validate learning
                 validation_result = validate_learning(learning)
                 if not validation_result['valid']:
                     results.append({
@@ -198,21 +240,14 @@ def batch_approve_learnings():
                     })
                     continue
                 
-                apply_result = apply_learning(learning)
-                if apply_result['success']:
-                    update_learning_status(learning_id, 'approved', current_user.id)
-                    successful_approvals += 1
-                    results.append({
-                        'learning_id': learning_id,
-                        'success': True,
-                        'message': 'Learning approved and applied'
-                    })
-                else:
-                    results.append({
-                        'learning_id': learning_id,
-                        'success': False,
-                        'message': apply_result['error']
-                    })
+                # Only approve, don't apply
+                update_learning_status(learning_id, 'approved', current_user.id)
+                successful_approvals += 1
+                results.append({
+                    'learning_id': learning_id,
+                    'success': True,
+                    'message': 'Learning approved (ready for application)'
+                })
                     
             except Exception as e:
                 results.append({
@@ -235,6 +270,85 @@ def batch_approve_learnings():
                 'total_attempted': len(learning_ids),
                 'successful': successful_approvals,
                 'failed': len(learning_ids) - successful_approvals
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_learning_bp.route('/batch_apply', methods=['POST'])
+@login_required
+@admin_required
+def batch_apply_learnings():
+    """Apply multiple approved learnings to production at once"""
+    try:
+        data = request.get_json()
+        learning_ids = data.get('learning_ids', [])
+        
+        if not learning_ids:
+            return jsonify({'success': False, 'error': 'No learning IDs provided'}), 400
+        
+        results = []
+        successful_applications = 0
+        
+        for learning_id in learning_ids:
+            try:
+                learning = get_learning_by_id(learning_id)
+                if not learning:
+                    results.append({
+                        'learning_id': learning_id,
+                        'success': False,
+                        'message': 'Learning not found'
+                    })
+                    continue
+                
+                # Check if learning is approved
+                if learning['status'] != 'approved':
+                    results.append({
+                        'learning_id': learning_id,
+                        'success': False,
+                        'message': 'Learning must be approved before it can be applied'
+                    })
+                    continue
+                
+                # Apply the learning
+                apply_result = apply_learning(learning)
+                if apply_result['success']:
+                    update_learning_status(learning_id, 'applied', current_user.id)
+                    successful_applications += 1
+                    results.append({
+                        'learning_id': learning_id,
+                        'success': True,
+                        'message': 'Learning applied to production'
+                    })
+                else:
+                    results.append({
+                        'learning_id': learning_id,
+                        'success': False,
+                        'message': apply_result['error']
+                    })
+                    
+            except Exception as e:
+                results.append({
+                    'learning_id': learning_id,
+                    'success': False,
+                    'message': str(e)
+                })
+        
+        # Log batch application
+        log_admin_action(current_user.id, 'batch_apply_learnings', {
+            'total_attempted': len(learning_ids),
+            'successful_applications': successful_applications,
+            'results': results
+        })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'summary': {
+                'total_attempted': len(learning_ids),
+                'successful': successful_applications,
+                'failed': len(learning_ids) - successful_applications
             }
         })
         
@@ -519,6 +633,75 @@ def get_learning_impact_data():
             'total_sessions_tracked': 0
         }
 
+def get_learning_history():
+    """Get learning history data for the dashboard"""
+    try:
+        conn = get_learning_db_connection()
+        cursor = conn.cursor()
+        
+        # Get all learnings with their status changes
+        cursor.execute('''
+            SELECT 
+                id, algorithm_name, learning_type, learning_description,
+                confidence_score, status, created_at, applied_at,
+                potential_improvement, suggested_parameters
+            FROM algorithm_learnings 
+            ORDER BY created_at DESC
+            LIMIT 50
+        ''')
+        
+        learnings = cursor.fetchall()
+        
+        # Calculate summary statistics
+        cursor.execute('''
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+                SUM(CASE WHEN status = 'applied' THEN 1 ELSE 0 END) as applied,
+                SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+            FROM algorithm_learnings
+        ''')
+        
+        stats = cursor.fetchone()
+        
+        # Format the data
+        history_data = []
+        for learning in learnings:
+            history_data.append({
+                'id': learning[0],
+                'algorithm_name': learning[1],
+                'learning_type': learning[2],
+                'learning_description': learning[3],
+                'confidence_score': learning[4],
+                'status': learning[5],
+                'created_at': learning[6],
+                'applied_at': learning[7],
+                'potential_improvement': learning[8],
+                'suggested_parameters': learning[9]
+            })
+        
+        summary_stats = {
+            'total': stats[0],
+            'approved': stats[1],
+            'applied': stats[2],
+            'rejected': stats[3],
+            'success_rate': round((stats[1] / stats[0]) * 100, 1) if stats[0] > 0 else 0
+        }
+        
+        conn.close()
+        
+        return {
+            'history': history_data,
+            'summary': summary_stats
+        }
+        
+    except Exception as e:
+        print(f"Error getting learning history: {e}")
+        return {
+            'history': [],
+            'summary': {'total': 0, 'approved': 0, 'applied': 0, 'rejected': 0, 'success_rate': 0}
+        }
+
 # Helper functions
 def get_learning_by_id(learning_id):
     """Get learning by ID"""
@@ -685,18 +868,24 @@ def get_learning_metrics():
 
 def get_pattern_library():
     """Get current pattern library"""
-    conn = get_learning_db_connection()
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
-    patterns = cursor.execute('''
-        SELECT * FROM learned_patterns 
-        WHERE status = 'active'
-        ORDER BY created_at DESC
-    ''').fetchall()
-    
-    conn.close()
-    return [dict(row) for row in patterns]
+    try:
+        conn = get_learning_db_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        patterns = cursor.execute('''
+            SELECT * FROM learned_patterns 
+            WHERE status = 'active'
+            ORDER BY created_at DESC
+        ''').fetchall()
+        
+        result = [dict(row) for row in patterns]
+        conn.close()
+        return result
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to get pattern library: {e}")
+        return []
 
 def calculate_summary_stats(pending_learnings, learning_metrics):
     """Calculate summary statistics"""

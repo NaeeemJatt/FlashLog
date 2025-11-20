@@ -71,8 +71,6 @@ FlashLog is a comprehensive log analysis and anomaly detection system that combi
    ```bash
    cd flashlog
    pip install -r requirements.txt
-   cd ../logai
-   pip install -e .
    ```
 
 4. **Setup and run**
